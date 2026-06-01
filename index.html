@@ -49,21 +49,23 @@
       }
 
       fetch("https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec?id=" + ticketId, {
-        method: "POST"
-      }).then(res => res.text()).then(text => {
-        if (text === "already") {
-          document.getElementById("result").innerHTML = '<span class="already">⚠️ チェックイン済みです</span>';
-        } else {
-          document.getElementById("result").innerHTML = '<span class="success">✅ チェックイン完了！</span>';
-        }
-        setTimeout(() => {
-          document.getElementById("result").innerHTML = "";
-          scanning = true;
-        }, 3000);
-      }).catch(() => {
-        document.getElementById("result").innerHTML = '<span class="error">エラーが発生しました</span>';
-        setTimeout(() => { scanning = true; }, 3000);
-      });
+  method: "POST"
+}).then(res => res.text()).then(text => {
+  if (text === "already") {
+    document.getElementById("result").innerHTML = '<span class="already">⚠️ チェックイン済みです</span>';
+  } else if (text === "notfound") {
+    document.getElementById("result").innerHTML = '<span class="error">❌ 無効なQRコードです</span>';
+  } else {
+    document.getElementById("result").innerHTML = '<span class="success">✅ チェックイン完了！</span>';
+  }
+  setTimeout(() => {
+    document.getElementById("result").innerHTML = "";
+    scanning = true;
+  }, 3000);
+}).catch(() => {
+  document.getElementById("result").innerHTML = '<span class="error">エラーが発生しました</span>';
+  setTimeout(() => { scanning = true; }, 3000);
+});
     });
   </script>
 </body>
