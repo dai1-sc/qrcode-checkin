@@ -154,7 +154,17 @@
     }
 
     function handleScan(decodedText) {
-      if (!scanning) return;
+  if (!scanning) return;
+
+  // ★ 1回読み取ったら即停止
+  scanning = false;
+  html5QrCode.stop();
+
+  // ★ 3秒後に自動再開
+  setTimeout(() => {
+    startScanning();
+  }, 3000);
+
 
       let ticketId;
       try {
