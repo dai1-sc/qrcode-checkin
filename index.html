@@ -88,12 +88,10 @@
   <header>QRチェックイン</header>
 
   <div class="container">
-    <!-- 左：結果表示 -->
     <div id="result" class="result-panel">
       読み取り待機中…
     </div>
 
-    <!-- 右：カメラ映像 -->
     <div id="reader"></div>
   </div>
 
@@ -138,16 +136,22 @@
         html5QrCode = new Html5Qrcode("reader");
       }
 
-      const cameras = await Html5Qrcode.getCameras();
-      if (cameras && cameras.length) {
-        const cameraId = cameras[0].id;
-        html5QrCode.start(
-          cameraId,
-          { fps: 10, qrbox: 300, disableFlip: true },
-          (decodedText) => handleScan(decodedText)
-        );
-      } else {
-        document.getElementById("result").innerHTML = "❌ カメラが見つかりません";
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length) {
+          const cameraId = cameras[0].id;
+          await html5QrCode.start(
+            cameraId,
+            { fps: 10, qrbox: 300, disableFlip: true },
+            (decodedText) => handleScan(decodedText)
+          );
+        } else {
+          document.getElementById("result").innerHTML = "❌ カメラが見つかりません";
+          scanning = false;
+        }
+      } catch (err) {
+        document.getElementById("result").innerHTML = "❌ カメラ起動エラー:<br>" + err;
+        scanning = false;
       }
     }
 
@@ -157,6 +161,8 @@
       html5QrCode.stop().then(() => {
         scanning = false;
         document.getElementById("result").innerHTML = "⏸ 読み取り停止中";
+      }).catch(err => {
+        console.error("停止エラー:", err);
       });
     }
 
@@ -170,21 +176,18 @@
         scanning = true;
       }, 3500);
 
-      document.getElementById("result").innerHTML = "⏳ サーバーお問い合わせ中...<br>少々お待ちください";
+      // 【追加】読み取った瞬間に検証中画面にする
+      document.getElementById("result").innerHTML = "⏳ チケット検証中...<br>少々お待ちください";
 
       let ticketId;
       try {
         const url = new URL(decodedText);
-        
-      let ticketId;
-      try {
-        const url = new URL(decodedText);
         ticketId = url.searchParams.get("id");
-      } catch {
+      } catch (e) {
         try {
           const url = new URL(decodeURIComponent(decodedText));
           ticketId = url.searchParams.get("id");
-        } catch {
+        } catch (e2) {
           ticketId = decodedText;
         }
       }
@@ -196,9 +199,14 @@
         return;
       }
 
-      fetch("https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec?id=" + ticketId, {
+      // ★ GASのWebアプリURL（もしデプロイし直してURLが変わっていたらここを書き換えてください）
+      const gasUrl = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
+
+      fetch(gasUrl + "?id=" + ticketId, {
         method: "POST"
-      }).then(res => res.text()).then(text => {
+      })
+      .then(res => res.text())
+      .then(text => {
         if (text === "already") {
           playBeep("already");
           document.getElementById("result").innerHTML =
@@ -212,7 +220,8 @@
           document.getElementById("result").innerHTML =
             '<span class="success">✅ チェックイン完了！<br>文化部門をお楽しみください！</span>';
         }
-      }).catch(() => {
+      })
+      .catch(() => {
         playBeep("error");
         document.getElementById("result").innerHTML =
           '<span class="error">エラーが発生しました</span>';
