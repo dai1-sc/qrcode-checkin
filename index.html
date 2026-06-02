@@ -1,216 +1,51 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <style>
-    body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #e9ecf5;
-      margin: 0;
-      padding: 0;
-    }
-
-    header {
-      background-color: #002366;
-      color: white;
-      padding: 15px 0;
-      font-size: 22px;
-      font-weight: bold;
-      text-align: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-
-    .container {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      gap: 30px;
-      padding: 30px;
-    }
-
-    .result-panel {
-      width: 300px;
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      font-size: 24px;
-      font-weight: bold;
-      text-align: center;
-      min-height: 200px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      line-height: 1.4;
-    }
-
-    .success { color: #007b00; }
-    .error { color: #d00000; }
-    .already { color: #555; }
-
-    #reader {
-      width: 600px;
-      height: 400px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      overflow: hidden;
-    }
-
-    #reader video {
-      transform: scaleX(1) !important;
-      object-fit: cover;
-    }
-
-    .controls {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    button {
-      background-color: #002366;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 12px 24px;
-      font-size: 16px;
-      cursor: pointer;
-      margin: 5px;
-    }
-
-    button:hover {
-      background-color: #003399;
-    }
-  </style>
-</head>
-<body>
-  <header>QRチェックイン</header>
-
-  <div class="container">
-    <div id="result" class="result-panel">
-      読み取り待機中…
-    </div>
-
-    <div id="reader"></div>
-  </div>
-
-  <div class="controls">
-    <button id="startBtn">▶ 開始</button>
-    <button id="stopBtn">⏸ 停止</button>
-  </div>
-
-  <script>
-    let scanning = false;
-    let html5QrCode;
-
-    /* ★ 音を鳴らす関数 */
-    function playBeep(type) {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === "success") {
-        osc.frequency.value = 880; // 高い音
-      } else if (type === "error") {
-        osc.frequency.value = 220; // 低い音
-      } else if (type === "already") {
-        osc.frequency.value = 440; // 中くらい
-      }
-
-      osc.start();
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
-      osc.stop(ctx.currentTime + 0.2);
-    }
-
-    async function startScanning() {
-      if (scanning) return;
-      scanning = true;
-      document.getElementById("result").innerHTML = "📷 カメラ起動中…";
-
-      html5QrCode = new Html5Qrcode("reader");
-      const cameras = await Html5Qrcode.getCameras();
-      if (cameras && cameras.length) {
-        const cameraId = cameras[0].id;
-        html5QrCode.start(
-          cameraId,
-          { fps: 10, qrbox: 300, disableFlip: true },
-          (decodedText) => handleScan(decodedText)
-        );
-      } else {
-        document.getElementById("result").innerHTML = "❌ カメラが見つかりません";
-      }
-    }
-
-    function stopScanning() {
-      if (!scanning || !html5QrCode) return;
-      html5QrCode.stop().then(() => {
-        scanning = false;
-        document.getElementById("result").innerHTML = "⏸ 読み取り停止中";
-      });
-    }
-
-    function handleScan(decodedText) {
+function handleScan(decodedText) {
   if (!scanning) return;
 
-  // ★ 1回読み取ったら即停止
+  // ★ 3秒間だけ読み取り無効化（カメラは止めない）
   scanning = false;
-  html5QrCode.stop();
-
-  // ★ 3秒後に自動再開
   setTimeout(() => {
-    startScanning();
-  }, 1200);
+    scanning = true;
+  }, 1500);
 
-
-      let ticketId;
-      try {
-        const url = new URL(decodedText);
-        ticketId = url.searchParams.get("id");
-      } catch {
-        try {
-          const url = new URL(decodeURIComponent(decodedText));
-          ticketId = url.searchParams.get("id");
-        } catch {
-          ticketId = decodedText;
-        }
-      }
-
-      if (!ticketId) {
-        playBeep("error");
-        document.getElementById("result").innerHTML =
-          '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
-        return;
-      }
-
-      fetch("https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec?id=" + ticketId, {
-        method: "POST"
-      }).then(res => res.text()).then(text => {
-        if (text === "already") {
-          playBeep("already");
-          document.getElementById("result").innerHTML =
-            '<span class="already">⚠️ このチケットはすでにチェックイン済みです</span>';
-        } else if (text === "notfound") {
-          playBeep("error");
-          document.getElementById("result").innerHTML =
-            '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
-        } else {
-          playBeep("success");
-          document.getElementById("result").innerHTML =
-            '<span class="success">✅ チェックイン完了！<br>文化部門をお楽しみください！</span>';
-        }
-      }).catch(() => {
-        playBeep("error");
-        document.getElementById("result").innerHTML =
-          '<span class="error">エラーが発生しました</span>';
-      });
+  let ticketId;
+  try {
+    const url = new URL(decodedText);
+    ticketId = url.searchParams.get("id");
+  } catch {
+    try {
+      const url = new URL(decodeURIComponent(decodedText));
+      ticketId = url.searchParams.get("id");
+    } catch {
+      ticketId = decodedText;
     }
+  }
 
-    document.getElementById("startBtn").addEventListener("click", startScanning);
-    document.getElementById("stopBtn").addEventListener("click", stopScanning);
-  </script>
-</body>
-</html>
+  if (!ticketId) {
+    playBeep("error");
+    document.getElementById("result").innerHTML =
+      '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
+    return;
+  }
+
+  fetch("https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec?id=" + ticketId, {
+    method: "POST"
+  }).then(res => res.text()).then(text => {
+    if (text === "already") {
+      playBeep("already");
+      document.getElementById("result").innerHTML =
+        '<span class="already">⚠️ このチケットはすでにチェックイン済みです</span>';
+    } else if (text === "notfound") {
+      playBeep("error");
+      document.getElementById("result").innerHTML =
+        '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
+    } else {
+      playBeep("success");
+      document.getElementById("result").innerHTML =
+        '<span class="success">✅ チェックイン完了！<br>文化部門をお楽しみください！</span>';
+    }
+  }).catch(() => {
+    playBeep("error");
+    document.getElementById("result").innerHTML =
+      '<span class="error">エラーが発生しました</span>';
+  });
+}
