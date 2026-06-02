@@ -224,8 +224,9 @@
       100% { stroke-dashoffset: 0; transform: rotate(-90deg); }
     }
 
+    /* ✅ 変更後：下からペンで描くように現れる設定 */
     @keyframes drawCheck {
-      0% { stroke-dashoffset: 100; }
+      0% { stroke-dashoffset: -100; } /* マイナスにすることで描く向きを逆にします */
       100% { stroke-dashoffset: 0; }
     }
   </style>
