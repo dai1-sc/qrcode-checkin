@@ -32,7 +32,7 @@
     }
 
     #reader video {
-      transform: scaleX(1) !important; /* 左右反転を解除 */
+      transform: scaleX(1) !important;
       object-fit: cover;
     }
 
@@ -46,6 +46,10 @@
     .error { color: #d00000; }
     .already { color: #555; }
 
+    .controls {
+      margin-top: 20px;
+    }
+
     button {
       background-color: #002366;
       color: white;
@@ -54,7 +58,7 @@
       padding: 12px 24px;
       font-size: 16px;
       cursor: pointer;
-      margin-top: 10px;
+      margin: 5px;
     }
 
     button:hover {
@@ -66,20 +70,45 @@
   <header>QRチェックイン</header>
 
   <div id="reader"></div>
+  <div class="controls">
+    <button id="startBtn">▶ 開始</button>
+    <button id="stopBtn">⏸ 停止</button>
+  </div>
   <div id="result"></div>
 
   <script>
-    let scanning = true;
+    let scanning = false;
+    let html5QrCode;
 
-    const scanner = new Html5QrcodeScanner("reader", {
-      fps: 10,
-      qrbox: 300,
-      disableFlip: true
-    });
+    async function startScanning() {
+      if (scanning) return;
+      scanning = true;
+      document.getElementById("result").innerHTML = "📷 カメラ起動中…";
 
-    scanner.render((decodedText) => {
+      html5QrCode = new Html5Qrcode("reader");
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras && cameras.length) {
+        const cameraId = cameras[0].id;
+        html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: 300, disableFlip: true },
+          (decodedText) => handleScan(decodedText)
+        );
+      } else {
+        document.getElementById("result").innerHTML = "❌ カメラが見つかりません";
+      }
+    }
+
+    function stopScanning() {
+      if (!scanning || !html5QrCode) return;
+      html5QrCode.stop().then(() => {
+        scanning = false;
+        document.getElementById("result").innerHTML = "⏸ 読み取り停止中";
+      });
+    }
+
+    function handleScan(decodedText) {
       if (!scanning) return;
-      scanning = false;
 
       let ticketId;
       try {
@@ -96,7 +125,6 @@
 
       if (!ticketId) {
         document.getElementById("result").innerHTML = '<span class="error">❌ 無効なQRコードです</span>';
-        setTimeout(() => { scanning = true; }, 3000);
         return;
       }
 
@@ -110,15 +138,13 @@
         } else {
           document.getElementById("result").innerHTML = '<span class="success">✅ チェックイン完了！</span>';
         }
-        setTimeout(() => {
-          document.getElementById("result").innerHTML = "";
-          scanning = true;
-        }, 3000);
       }).catch(() => {
         document.getElementById("result").innerHTML = '<span class="error">エラーが発生しました</span>';
-        setTimeout(() => { scanning = true; }, 3000);
       });
-    });
+    }
+
+    document.getElementById("startBtn").addEventListener("click", startScanning);
+    document.getElementById("stopBtn").addEventListener("click", stopScanning);
   </script>
 </body>
 </html>
