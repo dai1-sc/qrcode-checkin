@@ -4,21 +4,67 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f2f2f2; }
-    #reader { max-width: 400px; margin: auto; }
-    #result { margin-top: 20px; font-size: 18px; font-weight: bold; }
-    .success { color: green; }
-    .error { color: red; }
-    .already { color: gray; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #e9ecf5;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
 
-    /* ★ カメラ映像の左右反転を強制的に解除する */
+    header {
+      background-color: #002366;
+      color: white;
+      padding: 15px 0;
+      font-size: 22px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    #reader {
+      width: 600px;
+      height: 400px;
+      margin: 30px auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      overflow: hidden;
+    }
+
     #reader video {
-      transform: scaleX(1) !important;
+      transform: scaleX(1) !important; /* 左右反転を解除 */
+      object-fit: cover;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .success { color: #007b00; }
+    .error { color: #d00000; }
+    .already { color: #555; }
+
+    button {
+      background-color: #002366;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background-color: #003399;
     }
   </style>
 </head>
 <body>
-  <h2>QRチェックイン</h2>
+  <header>QRチェックイン</header>
+
   <div id="reader"></div>
   <div id="result"></div>
 
@@ -27,8 +73,8 @@
 
     const scanner = new Html5QrcodeScanner("reader", {
       fps: 10,
-      qrbox: 250,
-      disableFlip: true   // ← ミラー表示を無効化
+      qrbox: 300,
+      disableFlip: true
     });
 
     scanner.render((decodedText) => {
@@ -49,7 +95,7 @@
       }
 
       if (!ticketId) {
-        document.getElementById("result").innerHTML = '<span class="error">無効なQRコードです</span>';
+        document.getElementById("result").innerHTML = '<span class="error">❌ 無効なQRコードです</span>';
         setTimeout(() => { scanning = true; }, 3000);
         return;
       }
