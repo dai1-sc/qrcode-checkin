@@ -170,6 +170,12 @@
         scanning = true;
       }, 3500);
 
+      document.getElementById("result").innerHTML = "⏳ サーバーお問い合わせ中...<br>少々お待ちください";
+
+      let ticketId;
+      try {
+        const url = new URL(decodedText);
+        
       let ticketId;
       try {
         const url = new URL(decodedText);
