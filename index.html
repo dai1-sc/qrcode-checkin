@@ -21,7 +21,6 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
 
-    /* 2カラムレイアウト */
     .container {
       display: flex;
       justify-content: center;
@@ -30,7 +29,6 @@
       padding: 30px;
     }
 
-    /* 左側：結果表示 */
     .result-panel {
       width: 300px;
       background: white;
@@ -44,13 +42,13 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      line-height: 1.4;
     }
 
     .success { color: #007b00; }
     .error { color: #d00000; }
     .already { color: #555; }
 
-    /* 右側：カメラ映像 */
     #reader {
       width: 600px;
       height: 400px;
@@ -65,7 +63,6 @@
       object-fit: cover;
     }
 
-    /* ボタン */
     .controls {
       text-align: center;
       margin-top: 20px;
@@ -91,12 +88,10 @@
   <header>QRチェックイン</header>
 
   <div class="container">
-    <!-- 左：結果表示 -->
     <div id="result" class="result-panel">
       読み取り待機中…
     </div>
 
-    <!-- 右：カメラ映像 -->
     <div id="reader"></div>
   </div>
 
@@ -108,6 +103,28 @@
   <script>
     let scanning = false;
     let html5QrCode;
+
+    /* ★ 音を鳴らす関数 */
+    function playBeep(type) {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === "success") {
+        osc.frequency.value = 880; // 高い音
+      } else if (type === "error") {
+        osc.frequency.value = 220; // 低い音
+      } else if (type === "already") {
+        osc.frequency.value = 440; // 中くらい
+      }
+
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+      osc.stop(ctx.currentTime + 0.2);
+    }
 
     async function startScanning() {
       if (scanning) return;
@@ -153,7 +170,9 @@
       }
 
       if (!ticketId) {
-        document.getElementById("result").innerHTML = '<span class="error">❌ 無効なQRコードです</span>';
+        playBeep("error");
+        document.getElementById("result").innerHTML =
+          '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
         return;
       }
 
@@ -161,14 +180,22 @@
         method: "POST"
       }).then(res => res.text()).then(text => {
         if (text === "already") {
-          document.getElementById("result").innerHTML = '<span class="already">⚠️ チェックイン済みです</span>';
+          playBeep("already");
+          document.getElementById("result").innerHTML =
+            '<span class="already">⚠️ このチケットはすでにチェックイン済みです</span>';
         } else if (text === "notfound") {
-          document.getElementById("result").innerHTML = '<span class="error">❌ 無効なQRコードです</span>';
+          playBeep("error");
+          document.getElementById("result").innerHTML =
+            '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
         } else {
-          document.getElementById("result").innerHTML = '<span class="success">✅ チェックイン完了！</span>';
+          playBeep("success");
+          document.getElementById("result").innerHTML =
+            '<span class="success">✅ チェックイン完了！<br>文化部門をお楽しみください！</span>';
         }
       }).catch(() => {
-        document.getElementById("result").innerHTML = '<span class="error">エラーが発生しました</span>';
+        playBeep("error");
+        document.getElementById("result").innerHTML =
+          '<span class="error">エラーが発生しました</span>';
       });
     }
 
