@@ -104,22 +104,57 @@
       background: rgba(255, 255, 255, 0.1);
     }
 
-    #start-btn {
-      margin-top: 25px;
-      padding: 16px 32px;
-      font-size: 16px;
+    /* カメラ一時停止時の中央メッセージ */
+    #pause-message {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(20, 20, 20, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
       font-weight: bold;
-      background: #2ed573;
-      color: black;
+      color: #aaa;
+      z-index: 4;
+      display: none;
+    }
+
+    /* 操作ボタンたち */
+    .btn-container {
+      margin-top: 25px;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .action-btn {
+      padding: 16px 28px;
+      font-size: 15px;
+      font-weight: bold;
       border: none;
       border-radius: 50px;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(46,213,115,0.4);
       transition: all 0.3s;
     }
 
+    #start-btn {
+      background: #2ed573;
+      color: black;
+      box-shadow: 0 4px 15px rgba(46,213,115,0.4);
+    }
+
+    #pause-btn {
+      background: #333;
+      color: white;
+      border: 2px solid #555;
+      display: none; /* カメラ起動前は非表示 */
+    }
+
     /* ========================================================
-        🍏 劇的進化：MagSafe風一筆書きSVGアニメーション
+        🍏 MagSafe風一筆書きSVGアニメーション
     ======================================================== */
     #magsafe-overlay {
       position: absolute;
@@ -127,8 +162,8 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.4); /* 背景をフワッと暗く */
-      backdrop-filter: blur(8px);    /* トレンドの背景ぼかし */
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -138,16 +173,12 @@
       pointer-events: none;
       transition: opacity 0.3s ease;
     }
-    /* オーバーレイ表示時 */
-    #magsafe-overlay.active {
-      opacity: 1;
-    }
+    #magsafe-overlay.active { opacity: 1; }
 
-    /* 土台となるリングのコンテナ */
     .magsafe-ring {
       width: 200px;
       height: 200px;
-      border: 6px solid rgba(255, 255, 255, 0.15); /* うっすら見えるガイド線 */
+      border: 6px solid rgba(255, 255, 255, 0.15);
       border-radius: 50%;
       position: relative;
       display: flex;
@@ -155,20 +186,17 @@
       align-items: center;
       box-sizing: border-box;
       transform: scale(0.6);
-      transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* バウンドする動き */
+      transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    #magsafe-overlay.active .magsafe-ring {
-      transform: scale(1);
-    }
+    #magsafe-overlay.active .magsafe-ring { transform: scale(1); }
 
-    /* 円をなぞるプログレスアニメーション */
     .magsafe-progress {
       position: absolute;
       top: -6px;
       left: -6px;
       width: 200px;
       height: 200px;
-      transform: rotate(-90deg); /* 真上からスタートさせる */
+      transform: rotate(-90deg);
     }
     .magsafe-progress circle {
       fill: none;
@@ -178,12 +206,11 @@
       stroke-dasharray: 628;
       stroke-dashoffset: 628;
     }
-    /* 成功・エラー確定時にサークル線を描画 */
     #magsafe-overlay.animate .magsafe-progress circle {
       animation: fillCircle 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
 
-    /* 真ん中の一筆書きアイコン用SVG */
+    /* 真ん中の一筆書きアイコン */
     .magsafe-svg-icon {
       width: 85px;
       height: 85px;
@@ -199,22 +226,16 @@
       stroke-dasharray: 100;
       stroke-dashoffset: 100;
     }
-    /* サークルが描き終わる頃(0.4秒後)にペンで描くように描画 */
     #magsafe-overlay.animate .magsafe-svg-icon .draw-item {
       animation: drawCheck 0.45s 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
 
-    /* アニメーションの軌跡定義 */
-    @keyframes fillCircle {
-      0% { stroke-dashoffset: 628; }
-      100% { stroke-dashoffset: 0; }
-    }
-    @keyframes drawCheck {
-      0% { stroke-dashoffset: 100; }
-      100% { stroke-dashoffset: 0; }
-    }
+    @keyframes fillCircle { 0% { stroke-dashoffset: 628; } 100% { stroke-dashoffset: 0; } }
+    
+    /* ✍️ 修正：通常の100→0だとパスの始点（右上）から描かれてしまうため、
+       初期状態を「-100」にして「0」に近づけることで、始点（左小点）から右上へと正しく描画させます */
+    @keyframes drawCheck { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 0; } }
 
-    /* 下からふわっと出るテキスト */
     #magsafe-text {
       margin-top: 30px;
       font-size: 18px;
@@ -223,37 +244,20 @@
       opacity: 0;
       transform: translateY(10px);
     }
-    #magsafe-overlay.animate #magsafe-text {
-      animation: textFadeIn 0.3s ease-out 0.2s forwards;
-    }
-    @keyframes textFadeIn {
-      0% { opacity: 0; transform: translateY(10px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
+    #magsafe-overlay.animate #magsafe-text { animation: textFadeIn 0.3s ease-out 0.2s forwards; }
+    @keyframes textFadeIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
 
-    /* ========================================================
-        🔄 通信中（Loading）のスタイル
-    ======================================================== */
-    #magsafe-overlay.loading .magsafe-ring {
-      transform: scale(1);
-    }
+    /* 通信中（Loading） */
     #magsafe-overlay.loading .magsafe-progress circle {
       stroke: #ffffff;
       stroke-dasharray: 628;
-      stroke-dashoffset: 450; /* 少し隙間のある線にする */
+      stroke-dashoffset: 450;
       animation: spin 1s linear infinite;
       transform-origin: center;
     }
-    #magsafe-overlay.loading #magsafe-text {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    #magsafe-overlay.loading #magsafe-text { opacity: 1; transform: translateY(0); }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* モード別の色指定変数を一元管理 */
     .status-ok { --magsafe-color: #2ed573; }
     .status-exit { --magsafe-color: #ffa500; }
     .status-reentry { --magsafe-color: #1e90ff; }
@@ -274,6 +278,7 @@
 
   <div id="wrapper">
     <div class="scan-frame" id="scan-frame"></div>
+    <div id="pause-message">⏸ カメラ一時停止中</div>
     <video id="video" autoplay playsinline></video>
 
     <div id="magsafe-overlay">
@@ -281,30 +286,32 @@
         <svg class="magsafe-progress" viewBox="0 0 212 212">
           <circle cx="106" cy="106" r="100"></circle>
         </svg>
-        
-        <div id="magsafe-icon-box">
-          </div>
+        <div id="magsafe-icon-box"></div>
       </div>
       <div id="magsafe-text">読み取り中...</div>
     </div>
   </div>
 
-  <button id="start-btn" onclick="startCamera()">▶ カメラを開始する</button>
+  <div class="btn-container">
+    <button id="start-btn" class="action-btn" onclick="startCamera()">▶ カメラを開始する</button>
+    <button id="pause-btn" class="action-btn" onclick="togglePause()">⏸ スキャンを一時停止</button>
+  </div>
 
   <script>
-    // デプロイしたGASのWebアプリURL（★ここにあなたのURLを入れてください）
     const GAS_URL = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
 
     let currentMode = "entry"; 
     let video = document.getElementById("video");
     let scanFrame = document.getElementById("scan-frame");
+    let pauseMessage = document.getElementById("pause-message");
+    let pauseBtn = document.getElementById("pause-btn");
     let isScanning = false;
+    let isPaused = false; // 一時停止フラグ
+    let localStream = null;
     let audioCtx = null;
 
-    // モード切り替え関数
     function setMode(mode) {
       currentMode = mode;
-      
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
       
@@ -324,7 +331,6 @@
       }
     }
 
-    // サウンドエフェクト関数
     function playTone(type) {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       let osc = audioCtx.createOscillator();
@@ -354,26 +360,59 @@
       }
     }
 
-    // カメラ起動
     function startCamera() {
       document.getElementById("start-btn").style.display = "none";
+      pauseBtn.style.display = "inline-block"; // 一時停止ボタンを出現させる
       setMode("entry");
       
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(stream => {
+          localStream = stream;
           video.srcObject = stream;
           isScanning = true;
+          isPaused = false;
           requestAnimationFrame(scanQRCode);
         })
         .catch(err => {
-          alert("カメラの起動に失敗しました。権限を許可してください。");
+          alert("カメラの起動に失敗しました。");
           document.getElementById("start-btn").style.display = "inline-block";
         });
     }
 
-    // QRコードスキャンループ
+    // ⭐ 新機能：カメラ一時停止・再開の切り替え
+    function togglePause() {
+      if (!localStream) return;
+
+      if (!isPaused) {
+        // 一時停止する
+        isPaused = true;
+        isScanning = false;
+        pauseMessage.style.display = "flex";
+        scanFrame.style.display = "none";
+        pauseBtn.innerText = "▶ スキャンを再開";
+        pauseBtn.style.background = "#2ed573";
+        pauseBtn.style.color = "black";
+        
+        // カメラの映像トラックを停止してバッテリー節約
+        localStream.getVideoTracks().forEach(track => track.enabled = false);
+      } else {
+        // 再開する
+        isPaused = false;
+        isScanning = true;
+        pauseMessage.style.display = "none";
+        scanFrame.style.display = "block";
+        pauseBtn.innerText = "⏸ スキャンを一時停止";
+        pauseBtn.style.background = "#333";
+        pauseBtn.style.color = "white";
+        
+        // 映像トラックを再起動
+        localStream.getVideoTracks().forEach(track => track.enabled = true);
+        requestAnimationFrame(scanQRCode);
+      }
+    }
+
     function scanQRCode() {
-      if (!isScanning) return;
+      if (!isScanning || isPaused) return;
 
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         let canvas = document.createElement("canvas");
@@ -400,8 +439,9 @@
       requestAnimationFrame(scanQRCode);
     }
 
-    // GASへデータを送信してチェックイン
     function processTicket(qrData) {
+      if (isPaused) return; // 一時停止中は処理しない
+      
       let ticketId = "";
       let decodedData = decodeURIComponent(qrData);
 
@@ -421,7 +461,6 @@
         return;
       }
 
-      // ローディングアニメ開始
       triggerMagsafe("loading", "通信中...", "");
 
       fetch(GAS_URL, {
@@ -458,15 +497,13 @@
       fetch(GAS_URL + "?mode=log_invalid&data=" + encodeURIComponent(rawCode), { method: "POST" });
     }
 
-    // MagSafe風アニメーションの表示制御（一筆書きSVG対応版）
     function triggerMagsafe(statusClass, text, soundType) {
       let overlay = document.getElementById("magsafe-overlay");
       let iconBox = document.getElementById("magsafe-icon-box");
       let txtNode = document.getElementById("magsafe-text");
 
-      // クラスを完全にクリア
       overlay.className = "";
-      iconBox.innerHTML = ""; // 前のSVGアイコンを消去
+      iconBox.innerHTML = "";
 
       if (statusClass === "loading") {
         overlay.classList.add("active", "loading");
@@ -474,16 +511,14 @@
         return;
       }
 
-      // モードに応じたSVG一筆書きアイコンを生成
       let svgContent = "";
       if (statusClass === "ok" || statusClass === "reentry") {
-        // ✅ チェックマークの一筆書き
+        // ✍️ 修正：チェックマークの描き順を「左下(4,12) → 折れ曲がり(9,17) → 右上(20,6)」の順にpolylineを設定
         svgContent = `
           <svg class="magsafe-svg-icon" viewBox="0 0 24 24">
-            <polyline class="draw-item" points="20 6 9 17 4 12"></polyline>
+            <polyline class="draw-item" points="4 12 9 17 20 6"></polyline>
           </svg>`;
       } else if (statusClass === "exit") {
-        // 🚪 ドア・矢印の一筆書き（一時退場用）
         svgContent = `
           <svg class="magsafe-svg-icon" viewBox="0 0 24 24">
             <path class="draw-item" d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5"></path>
@@ -491,7 +526,6 @@
             <line class="draw-item" x1="15" y1="12" x2="3" y2="12"></line>
           </svg>`;
       } else if (statusClass === "error") {
-        // ⚠️ 警告バツマークの一筆書き（エラー用）
         svgContent = `
           <svg class="magsafe-svg-icon" viewBox="0 0 24 24">
             <line class="draw-item" x1="18" y1="6" x2="6" y2="18"></line>
@@ -502,17 +536,19 @@
       iconBox.innerHTML = svgContent;
       txtNode.innerText = text;
 
-      // クラスを付与して一斉にアニメーション開始
       overlay.className = "active animate status-" + statusClass;
 
       if (soundType) playTone(soundType);
 
-      // アニメーションの余韻を楽しめるよう、1.8秒後に次のスキャンへ
       setTimeout(() => {
         overlay.className = "";
         scanFrame.classList.remove("detected");
-        isScanning = true;
-        requestAnimationFrame(scanQRCode);
+        
+        // 一時停止中でなければスキャンループを再開
+        if (!isPaused) {
+          isScanning = true;
+          requestAnimationFrame(scanQRCode);
+        }
       }, 1800);
     }
   </script>
