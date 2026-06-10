@@ -3,80 +3,124 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>一高祭 QRチェックイン</title>
+  <title>一高祭 QRチェックインシステム</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root {
+      --primary-color: #002b75; /* 元UIの綺麗なネイビー */
+      --bg-color: #e9edf4;      /* 元UIの淡いグレー背景 */
       --theme-color: #2ed573;
     }
-    
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background: #111;
-      color: white;
-      text-align: center;
-      overflow-x: hidden;
+      background-color: var(--bg-color);
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
 
-    /* モード切り替えタブ */
+    /* 統一された美しいヘッダー */
+    header {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 12px 20px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .header-sub {
+      font-size: 12px;
+      letter-spacing: 2px;
+      opacity: 0.8;
+      margin-bottom: 4px;
+    }
+    .header-title-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .header-logo {
+      width: 28px;
+      height: 28px;
+    }
+    .header-title {
+      font-size: 24px;
+      margin: 0;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    /* 今回追加した中央寄せのモード切り替えタブ */
+    .tab-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
     .tab-container {
       display: flex;
-      background: #222;
+      background: rgba(0, 43, 117, 0.08);
       padding: 5px;
-      margin: 15px auto;
       border-radius: 12px;
-      max-width: 90%;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      width: 90%;
+      max-width: 500px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
     }
-
     .tab-btn {
       flex: 1;
-      padding: 12px 10px;
+      padding: 10px 15px;
       background: transparent;
       border: none;
-      color: #aaa;
+      color: #666;
       font-size: 14px;
       font-weight: bold;
       cursor: pointer;
       border-radius: 8px;
-      transition: all 0.2s;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
-
-    .tab-btn.active[data-mode="entry"] { background: #2ed573; color: #000; }
-    .tab-btn.active[data-mode="exit"] { background: #ffa500; color: #000; }
-    .tab-btn.active[data-mode="re_entry"] { background: #1e90ff; color: #fff; }
-
-    h1 {
-      font-size: 20px;
-      margin: 15px 0 5px 0;
-      letter-spacing: 1px;
-    }
+    .tab-btn.active[data-mode="entry"] { background: #2ed573; color: white; box-shadow: 0 4px 10px rgba(46,213,115,0.3); }
+    .tab-btn.active[data-mode="exit"] { background: #ffa500; color: white; box-shadow: 0 4px 10px rgba(255,165,0,0.3); }
+    .tab-btn.active[data-mode="re_entry"] { background: #1e90ff; color: white; box-shadow: 0 4px 10px rgba(30,144,255,0.3); }
 
     #current-mode-badge {
-      display: inline-block;
-      padding: 5px 14px;
-      border-radius: 20px;
       font-size: 13px;
       font-weight: bold;
-      background: var(--theme-color);
-      color: #000;
-      margin-bottom: 15px;
-      transition: all 0.3s;
+      color: #555;
+      margin-top: 8px;
     }
-    #current-mode-badge.light-text { color: #fff; }
 
-    #wrapper {
-      position: relative;
-      width: 90%;
-      max-width: 360px;
+    /* メインの2連カードレイアウト */
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 25px;
+      padding: 20px;
+      max-width: 1100px;
       margin: 0 auto;
-      aspect-ratio: 1 / 1;
-      border-radius: 28px;
+      width: 90%;
+    }
+
+    .card {
+      flex: 1;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      aspect-ratio: 1.15 / 1;
+      position: relative;
       overflow: hidden;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     video {
@@ -92,7 +136,7 @@
       left: 15%;
       width: 70%;
       height: 70%;
-      border: 3px dashed rgba(255, 255, 255, 0.4);
+      border: 3px dashed rgba(0, 43, 117, 0.2);
       border-radius: 16px;
       box-sizing: border-box;
       z-index: 5;
@@ -104,57 +148,84 @@
       background: rgba(255, 255, 255, 0.1);
     }
 
-    /* カメラ一時停止時の中央メッセージ */
+    /* 元UIに忠実な「読み取り停止中」画面 */
     #pause-message {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(20, 20, 20, 0.85);
+      background: white;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 18px;
+      font-size: 22px;
       font-weight: bold;
-      color: #aaa;
+      color: #000;
       z-index: 4;
-      display: none;
+      gap: 10px;
+    }
+    .pause-icon {
+      background: #ffa500;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 16px;
     }
 
-    /* 操作ボタンたち */
+    /* 右側の結果表示用ログスペース (現状は白紙の綺麗なカード) */
+    .result-placeholder {
+      font-size: 18px;
+      color: #999;
+      font-weight: 500;
+    }
+
+    /* コントロールボタンセクション */
+    .control-panel {
+      text-align: center;
+      padding-bottom: 40px;
+    }
     .btn-container {
-      margin-top: 25px;
       display: flex;
       justify-content: center;
       gap: 15px;
     }
-
     .action-btn {
-      padding: 16px 28px;
-      font-size: 15px;
+      padding: 14px 32px;
+      font-size: 16px;
       font-weight: bold;
       border: none;
-      border-radius: 50px;
+      border-radius: 6px; /* 元UIの少し角張ったスタイリッシュなボタン */
       cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    #start-btn {
-      background: #2ed573;
-      color: black;
-      box-shadow: 0 4px 15px rgba(46,213,115,0.4);
-    }
-
-    #pause-btn {
-      background: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       color: white;
-      border: 2px solid #555;
-      display: none; /* カメラ起動前は非表示 */
+      background-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(0,43,117,0.2);
+      transition: all 0.2s;
+    }
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 15px rgba(0,43,117,0.3);
+    }
+    .btn-orange {
+      background-color: #002b75; /* 統一感を出すためネイビーに。停止時はオレンジのアイコン */
+    }
+
+    /* フッター */
+    footer {
+      background-color: #dbe2ef;
+      color: #666;
+      font-size: 12px;
+      padding: 12px;
+      text-align: center;
+      font-family: monospace;
+      border-top: 1px solid #ccd6e0;
     }
 
     /* ========================================================
-        🍏 MagSafe風一筆書きSVGアニメーション
+        🍏 MagSafe風一筆書きSVGアニメーション（カード内埋め込み）
     ======================================================== */
     #magsafe-overlay {
       position: absolute;
@@ -162,7 +233,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(255, 255, 255, 0.75); /* 明るいUIに合わせて白ブラーに変更 */
       backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
@@ -176,9 +247,9 @@
     #magsafe-overlay.active { opacity: 1; }
 
     .magsafe-ring {
-      width: 200px;
-      height: 200px;
-      border: 6px solid rgba(255, 255, 255, 0.15);
+      width: 160px;
+      height: 160px;
+      border: 5px solid rgba(0, 0, 0, 0.06);
       border-radius: 50%;
       position: relative;
       display: flex;
@@ -192,35 +263,35 @@
 
     .magsafe-progress {
       position: absolute;
-      top: -6px;
-      left: -6px;
-      width: 200px;
-      height: 200px;
+      top: -5px;
+      left: -5px;
+      width: 160px;
+      height: 160px;
       transform: rotate(-90deg);
     }
     .magsafe-progress circle {
       fill: none;
       stroke: var(--magsafe-color);
-      stroke-width: 6;
+      stroke-width: 5;
       stroke-linecap: round;
-      stroke-dasharray: 628;
-      stroke-dashoffset: 628;
+      stroke-dasharray: 503;
+      stroke-dashoffset: 503;
     }
     #magsafe-overlay.animate .magsafe-progress circle {
       animation: fillCircle 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
 
-    /* 真ん中の一筆書きアイコン */
+    /* 一筆書き用SVGアイコン */
     .magsafe-svg-icon {
-      width: 85px;
-      height: 85px;
+      width: 70px;
+      height: 70px;
     }
     .magsafe-svg-icon path,
     .magsafe-svg-icon polyline,
     .magsafe-svg-icon line {
       fill: none;
-      stroke: #ffffff;
-      stroke-width: 6;
+      stroke: var(--magsafe-color); /* チェックマークの色もテーマカラーに連動させて美しく */
+      stroke-width: 5;
       stroke-linecap: round;
       stroke-linejoin: round;
       stroke-dasharray: 100;
@@ -230,20 +301,14 @@
       animation: drawCheck 0.45s 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
 
-    @keyframes fillCircle { 0% { stroke-dashoffset: 628; } 100% { stroke-dashoffset: 0; } }
-    
-    /* ✍️ 修正：通常の100→0だとパスの始点（右上）から描かれてしまうため、
-       初期状態を「-100」にして「0」に近づけることで、始点（左小点）から右上へと正しく描画させます */
-    @keyframes drawCheck { 
-      0% { stroke-dashoffset: -100; } /* マイナスにすることで描く向きを逆にします */
-      100% { stroke-dashoffset: 0; }
-    }
+    @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
+    @keyframes drawCheck { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 0; } }
 
     #magsafe-text {
-      margin-top: 30px;
-      font-size: 18px;
+      margin-top: 20px;
+      font-size: 16px;
       font-weight: bold;
-      color: white;
+      color: #222;
       opacity: 0;
       transform: translateY(10px);
     }
@@ -252,9 +317,9 @@
 
     /* 通信中（Loading） */
     #magsafe-overlay.loading .magsafe-progress circle {
-      stroke: #ffffff;
-      stroke-dasharray: 628;
-      stroke-dashoffset: 450;
+      stroke: var(--primary-color);
+      stroke-dasharray: 503;
+      stroke-dashoffset: 350;
       animation: spin 1s linear infinite;
       transform-origin: center;
     }
@@ -269,36 +334,58 @@
 </head>
 <body>
 
-  <h1>一高祭 受付管理システム</h1>
+  <header>
+    <div class="header-sub">一高祭 ・ 文化部門</div>
+    <div class="header-title-container">
+      <svg class="header-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 8v8M8 12h8"></path>
+      </svg>
+      <h1 class="header-title">QRチェックインシステム</h1>
+    </div>
+  </header>
   
-  <div class="tab-container">
-    <button class="tab-btn active" data-mode="entry" onclick="setMode('entry')">🟢 初回入場</button>
-    <button class="tab-btn" data-mode="exit" onclick="setMode('exit')">🚪 一時退場</button>
-    <button class="tab-btn" data-mode="re_entry" onclick="setMode('re_entry')">🔵 再入場</button>
+  <div class="tab-wrapper">
+    <div class="tab-container">
+      <button class="tab-btn active" data-mode="entry" onclick="setMode('entry')">🟢 初回入場</button>
+      <button class="tab-btn" data-mode="exit" onclick="setMode('exit')">🚪 一時退場</button>
+      <button class="tab-btn" data-mode="re_entry" onclick="setMode('re_entry')">🔵 再入場</button>
+    </div>
+    <div id="current-mode-badge">現在のモード: 初回入場</div>
   </div>
 
-  <div id="current-mode-badge">現在のモード: 初回入場</div>
+  <main>
+    <div class="card">
+      <div class="scan-frame" id="scan-frame"></div>
+      <div id="pause-message"><span class="pause-icon">🪪</span> 読み取り停止中</div>
+      <video id="video" autoplay playsinline></video>
 
-  <div id="wrapper">
-    <div class="scan-frame" id="scan-frame"></div>
-    <div id="pause-message">⏸ カメラ一時停止中</div>
-    <video id="video" autoplay playsinline></video>
-
-    <div id="magsafe-overlay">
-      <div class="magsafe-ring">
-        <svg class="magsafe-progress" viewBox="0 0 212 212">
-          <circle cx="106" cy="106" r="100"></circle>
-        </svg>
-        <div id="magsafe-icon-box"></div>
+      <div id="magsafe-overlay">
+        <div class="magsafe-ring">
+          <svg class="magsafe-progress" viewBox="0 0 170 170">
+            <circle cx="85" cy="85" r="80"></circle>
+          </svg>
+          <div id="magsafe-icon-box"></div>
+        </div>
+        <div id="magsafe-text">読み取り中...</div>
       </div>
-      <div id="magsafe-text">読み取り中...</div>
+    </div>
+
+    <div class="card">
+      <div class="result-placeholder" id="result-placeholder">ここにスキャン結果が表示されます</div>
+    </div>
+  </main>
+
+  <div class="control-panel">
+    <div class="btn-container">
+      <button id="start-btn" class="action-btn" onclick="startCamera()">▶ 開始</button>
+      <button id="pause-btn" class="action-btn btn-orange" onclick="togglePause()" style="display:none;">⏸ 停止</button>
     </div>
   </div>
 
-  <div class="btn-container">
-    <button id="start-btn" class="action-btn" onclick="startCamera()">▶ カメラを開始する</button>
-    <button id="pause-btn" class="action-btn" onclick="togglePause()">⏸ スキャンを一時停止</button>
-  </div>
+  <footer>
+    &lt;/&gt; Powered by Google Apps Script &amp; HTML5-QRcode API
+  </footer>
 
   <script>
     const GAS_URL = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
@@ -308,8 +395,9 @@
     let scanFrame = document.getElementById("scan-frame");
     let pauseMessage = document.getElementById("pause-message");
     let pauseBtn = document.getElementById("pause-btn");
+    let resultPlaceholder = document.getElementById("result-placeholder");
     let isScanning = false;
-    let isPaused = false; // 一時停止フラグ
+    let isPaused = true; // 最初は停止中スタートに統一
     let localStream = null;
     let audioCtx = null;
 
@@ -322,15 +410,12 @@
       if (mode === "entry") {
         document.documentElement.style.setProperty('--theme-color', '#2ed573');
         badge.innerText = "現在のモード: 初回入場";
-        badge.classList.remove('light-text');
       } else if (mode === "exit") {
         document.documentElement.style.setProperty('--theme-color', '#ffa500');
         badge.innerText = "現在のモード: 一時退場";
-        badge.classList.remove('light-text');
       } else if (mode === "re_entry") {
         document.documentElement.style.setProperty('--theme-color', '#1e90ff');
         badge.innerText = "現在のモード: 再入場";
-        badge.classList.add('light-text');
       }
     }
 
@@ -363,54 +448,51 @@
       }
     }
 
-    function startCamera() {
-      document.getElementById("start-btn").style.display = "none";
-      pauseBtn.style.display = "inline-block"; // 一時停止ボタンを出現させる
-      setMode("entry");
-      
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    function initCamera() {
+      return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(stream => {
           localStream = stream;
           video.srcObject = stream;
           isScanning = true;
-          isPaused = false;
           requestAnimationFrame(scanQRCode);
         })
         .catch(err => {
           alert("カメラの起動に失敗しました。");
           document.getElementById("start-btn").style.display = "inline-block";
+          pauseBtn.style.display = "none";
         });
     }
 
-    // ⭐ 新機能：カメラ一時停止・再開の切り替え
+    function startCamera() {
+      document.getElementById("start-btn").style.display = "none";
+      pauseBtn.style.display = "inline-block";
+      pauseMessage.style.display = "none";
+      setMode("entry");
+      isPaused = false;
+      initCamera();
+    }
+
     function togglePause() {
-      if (!localStream) return;
+      if (!localStream && !isPaused) return;
 
       if (!isPaused) {
-        // 一時停止する
         isPaused = true;
         isScanning = false;
         pauseMessage.style.display = "flex";
         scanFrame.style.display = "none";
-        pauseBtn.innerText = "▶ スキャンを再開";
-        pauseBtn.style.background = "#2ed573";
-        pauseBtn.style.color = "black";
+        pauseBtn.innerHTML = "▶ 再開";
         
-        // カメラの映像トラックを停止してバッテリー節約
-        localStream.getVideoTracks().forEach(track => track.enabled = false);
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          localStream = null;
+        }
+        video.srcObject = null;
       } else {
-        // 再開する
         isPaused = false;
-        isScanning = true;
         pauseMessage.style.display = "none";
         scanFrame.style.display = "block";
-        pauseBtn.innerText = "⏸ スキャンを一時停止";
-        pauseBtn.style.background = "#333";
-        pauseBtn.style.color = "white";
-        
-        // 映像トラックを再起動
-        localStream.getVideoTracks().forEach(track => track.enabled = true);
-        requestAnimationFrame(scanQRCode);
+        pauseBtn.innerHTML = "⏸ 停止";
+        initCamera();
       }
     }
 
@@ -443,7 +525,7 @@
     }
 
     function processTicket(qrData) {
-      if (isPaused) return; // 一時停止中は処理しない
+      if (isPaused) return;
       
       let ticketId = "";
       let decodedData = decodeURIComponent(qrData);
@@ -453,13 +535,13 @@
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        triggerMagsafe("error", "❌ 無効なQRコード", "invalid");
+        triggerMagsafe("error", "無効なQRコード", "invalid");
         logInvalidQR(qrData);
         return;
       }
 
       if (!ticketId) {
-        triggerMagsafe("error", "❌ IDの抽出に失敗", "invalid");
+        triggerMagsafe("error", "IDの抽出に失敗", "invalid");
         logInvalidQR(qrData);
         return;
       }
@@ -476,23 +558,27 @@
       .then(res => res.text())
       .then(result => {
         if (result === "OK") {
-          triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
+          triggerMagsafe("ok", "入場手続き完了", "ok");
+          resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br>ID: ${ticketId}<br>時刻: ${new Date().toLocaleTimeString()}`;
         } else if (result === "EXIT_OK") {
-          triggerMagsafe("exit", "🚪 一時退場しました", "exit");
+          triggerMagsafe("exit", "一時退場手続き完了", "exit");
+          resultPlaceholder.innerHTML = `<b style="color:#ffa500; font-size:24px;">【退場】一時退場</b><br><br>ID: ${ticketId}<br>時刻: ${new Date().toLocaleTimeString()}`;
         } else if (result === "RE_ENTRY_OK") {
-          triggerMagsafe("reentry", "🔄 再入場手続き完了", "ok");
-        } else if (result === "already" || result === "ALREADY_IN") {
-          triggerMagsafe("error", "⚠️ すでに滞在中（重複）", "error");
-        } else if (result === "ALREADY_OUT") {
-          triggerMagsafe("error", "⚠️ すでに退場済みです", "error");
-        } else if (result === "ERROR_NOT_IN_YET") {
-          triggerMagsafe("error", "❌ まだ入場していません", "error");
+          triggerMagsafe("reentry", "再入場手続き完了", "ok");
+          resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br>ID: ${ticketId}<br>時刻: ${new Date().toLocaleTimeString()}`;
         } else {
-          triggerMagsafe("error", "❌ チケットが見つかりません", "error");
+          let errMsg = "エラーが発生しました";
+          if (result === "already" || result === "ALREADY_IN") errMsg = "すでに滞在中（重複）";
+          if (result === "ALREADY_OUT") errMsg = "すでに退場済みです";
+          if (result === "ERROR_NOT_IN_YET") errMsg = "まだ入場していません";
+          
+          triggerMagsafe("error", errMsg, "error");
+          resultPlaceholder.innerHTML = `<b style="color:#ff4757; font-size:24px;">【エラー】</b><br><br>${errMsg}<br>ID: ${ticketId}`;
         }
       })
       .catch(err => {
-        triggerMagsafe("error", "📡 通信エラーが発生しました", "error");
+        triggerMagsafe("error", "通信エラー", "error");
+        resultPlaceholder.innerHTML = `<b style="color:#ff4757; font-size:24px;">通信エラー</b><br><br>GASとの接続に失敗しました。`;
       });
     }
 
@@ -516,7 +602,6 @@
 
       let svgContent = "";
       if (statusClass === "ok" || statusClass === "reentry") {
-        // ✍️ 修正：チェックマークの描き順を「左下(4,12) → 折れ曲がり(9,17) → 右上(20,6)」の順にpolylineを設定
         svgContent = `
           <svg class="magsafe-svg-icon" viewBox="0 0 24 24">
             <polyline class="draw-item" points="4 12 9 17 20 6"></polyline>
@@ -547,7 +632,6 @@
         overlay.className = "";
         scanFrame.classList.remove("detected");
         
-        // 一時停止中でなければスキャンループを再開
         if (!isPaused) {
           isScanning = true;
           requestAnimationFrame(scanQRCode);
