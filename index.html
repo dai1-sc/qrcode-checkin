@@ -234,7 +234,10 @@
     
     /* ✍️ 修正：通常の100→0だとパスの始点（右上）から描かれてしまうため、
        初期状態を「-100」にして「0」に近づけることで、始点（左小点）から右上へと正しく描画させます */
-    @keyframes drawCheck { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 0; } }
+    @keyframes drawCheck { 
+      0% { stroke-dashoffset: -100; } /* マイナスにすることで描く向きを逆にします */
+      100% { stroke-dashoffset: 0; }
+    }
 
     #magsafe-text {
       margin-top: 30px;
