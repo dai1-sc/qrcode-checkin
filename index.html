@@ -1,416 +1,407 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一高祭 QRチェックイン</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
+    :root {
+      --theme-color: #002366; /* 初期は入場モード（ネイビー） */
+      --success-color: #2ed573;
+    }
+    
     body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #e9ecf5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
       padding: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-
-    header {
-      background-color: #002366;
+      background: #111;
       color: white;
-      padding: 15px 0;
       text-align: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      overflow-x: hidden;
     }
 
-    .header-sub {
-      font-size: 14px;
-      letter-spacing: 2px;
-      opacity: 0.9;
-      margin-bottom: 4px;
-    }
-
-    .header-main {
-      font-size: 26px;
-      font-weight: bold;
+    /* モード切り替えタブ */
+    .tab-container {
       display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 12px;
+      background: #222;
+      padding: 5px;
+      margin: 15px auto;
+      border-radius: 8px;
+      max-width: 90%;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
 
-    .school-logo {
-      width: 36px;
-      height: 36px;
-      background: white;
-      border-radius: 50%;
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      overflow: hidden;
-    }
-
-    .school-logo img {
-      width: 90%;
-      height: 90%;
-      object-fit: contain;
-    }
-
-    .main-content {
+    .tab-btn {
       flex: 1;
-      padding: 30px;
-    }
-
-    .container {
-      display: flex;
-      justify-content: center;
-      align-items: stretch;
-      gap: 30px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .result-panel {
-      width: 360px;
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      font-size: 22px;
+      padding: 10px;
+      background: transparent;
+      border: none;
+      color: #aaa;
+      font-size: 14px;
       font-weight: bold;
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      line-height: 1.5;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
     }
 
-    .success { color: #007b00; }
-    .error { color: #d00000; }
-    .already { color: #555; }
+    .tab-btn.active[data-mode="entry"] { background: #2ed573; color: #000; }
+    .tab-btn.active[data-mode="exit"] { background: #ffa500; color: #000; }
+    .tab-btn.active[data-mode="re_entry"] { background: #1e90ff; color: #fff; }
 
-    #reader {
-      width: 600px;
-      height: 400px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    h1 {
+      font-size: 20px;
+      margin: 10px 0 5px 0;
+      letter-spacing: 1px;
+    }
+
+    #current-mode-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      background: var(--theme-color);
+      margin-bottom: 15px;
+      transition: background 0.3s;
+    }
+
+    #wrapper {
+      position: relative;
+      width: 90%;
+      max-width: 400px;
+      margin: 0 auto;
+      aspect-ratio: 1 / 1;
+      border-radius: 24px;
       overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      background: #000;
     }
 
-    #reader video {
-      transform: scaleX(1) !important;
+    video {
+      width: 100%;
+      height: 100%;
       object-fit: cover;
     }
 
-    .controls {
-      text-align: center;
-      margin-top: 30px;
-    }
-
-    button {
-      background-color: #002366;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 14px 32px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      margin: 5px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-      transition: background-color 0.2s, transform 0.1s;
-    }
-
-    button:hover {
-      background-color: #003399;
-    }
-
-    button:active {
-      transform: scale(0.98);
-    }
-
-    footer {
-      text-align: center;
-      padding: 15px;
-      font-size: 12px;
-      color: #7788a3;
-      background: #e1e5f0;
-      border-top: 1px solid #d2d7e5;
-      font-family: "Courier New", Courier, monospace;
-    }
-
-    /* ===================================================
-       🍏 MagSafe風アニメーション用のスタイル（追加部分）
-       =================================================== */
-    .magsafe-overlay {
-      position: fixed;
+    /* スキャン線のレーザー演出 */
+    .laser {
+      position: absolute;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.4); /* 背景をフワッと暗く */
-      backdrop-filter: blur(8px);    /* トレンドの背景ぼかし */
+      width: 100%;
+      height: 3px;
+      background: var(--theme-color);
+      box-shadow: 0 0 12px var(--theme-color);
+      animation: scan 2s linear infinite;
+      z-index: 5;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+
+    @keyframes scan {
+      0% { top: 0%; }
+      50% { top: 100%; }
+      100% { top: 0%; }
+    }
+
+    /* 開始ボタン */
+    #start-btn {
+      margin-top: 20px;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      background: var(--theme-color);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,35,102,0.4);
+      transition: all 0.3s;
+    }
+
+    /* MagSafe風アニメーションオーバーレイ */
+    #magsafe-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 9999;
+      z-index: 10;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.2s ease;
     }
 
-    /* アニメーション起動用のクラス */
-    .magsafe-overlay.show {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .magsafe-ring {
-      width: 200px;
-      height: 200px;
-      border: 6px solid rgba(255, 255, 255, 0.2);
+    .magsafe-circle {
+      width: 140px;
+      height: 140px;
+      border: 8px solid transparent;
       border-radius: 50%;
-      position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
-      transform: scale(0.6);
-      transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* バウンドする動き */
+      transform: scale(0.5);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    .magsafe-overlay.show .magsafe-ring {
-      transform: scale(1);
+    .magsafe-icon {
+      font-size: 50px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    /* MagSafe特有の緑色のインジケータ（円をなぞるアニメーション） */
-    .magsafe-progress {
-      position: absolute;
-      top: -6px;
-      left: -6px;
-      width: 200px;
-      height: 200px;
-      border: 6px solid #2ed573;
-      border-radius: 50%;
-      clip-path: inset(0 0 0 0);
-      stroke-dasharray: 630;
-      stroke-dashoffset: 630;
+    #magsafe-text {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
     }
 
-    .magsafe-overlay.show .magsafe-progress {
-      animation: fillCircle 0.6s ease forwards;
-    }
+    /* アニメーション発火用クラス */
+    #magsafe-overlay.active { opacity: 1; }
+    #magsafe-overlay.active .magsafe-circle { transform: scale(1); }
+    #magsafe-overlay.active .magsafe-icon { opacity: 1; transform: scale(1); }
 
-    /* 真ん中の白いチェックマーク（SVG） */
-    .magsafe-checkmark {
-      width: 80px;
-      height: 80px;
-      fill: none;
-      stroke: #ffffff;
-      stroke-width: 6;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      stroke-dasharray: 100;
-      stroke-dashoffset: 100;
-    }
+    /* ステータス別の色定義 */
+    .status-ok .magsafe-circle { border-color: #2ed573; box-shadow: 0 0 20px rgba(46,213,115,0.4); }
+    .status-ok .magsafe-icon { color: #2ed573; }
+    
+    .status-exit .magsafe-circle { border-color: #ffa500; box-shadow: 0 0 20px rgba(255,165,0,0.4); }
+    .status-exit .magsafe-icon { color: #ffa500; }
 
-    .magsafe-overlay.show .magsafe-checkmark {
-      animation: drawCheck 0.4s 0.4s ease forwards; /* サークルが終わった後に描画 */
-    }
+    .status-reentry .magsafe-circle { border-color: #1e90ff; box-shadow: 0 0 20px rgba(30,144,255,0.4); }
+    .status-reentry .magsafe-icon { color: #1e90ff; }
 
-    /* アニメーションの軌跡の定義 */
-    @keyframes fillCircle {
-      0% { stroke-dashoffset: 630; transform: rotate(-90deg); }
-      100% { stroke-dashoffset: 0; transform: rotate(-90deg); }
-    }
-
-    /* ✅ 変更後：下からペンで描くように現れる設定 */
-    @keyframes drawCheck {
-      0% { stroke-dashoffset: -100; } /* マイナスにすることで描く向きを逆にします */
-      100% { stroke-dashoffset: 0; }
-    }
+    .status-error .magsafe-circle { border-color: #ff4757; box-shadow: 0 0 20px rgba(255,71,87,0.4); }
+    .status-error .magsafe-icon { color: #ff4757; }
   </style>
 </head>
 <body>
 
-  <div id="magsafeOverlay" class="magsafe-overlay">
-    <div class="magsafe-ring">
-      <svg class="magsafe-progress" viewBox="0 0 212 212">
-        <circle cx="106" cy="106" r="100" fill="none" stroke="#2ed573" stroke-width="6" stroke-dasharray="628" stroke-dashoffset="628" stroke-linecap: round; />
-      </svg>
-      <svg class="magsafe-checkmark" viewBox="0 0 24 24">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
+  <h1>一高祭 受付管理システム</h1>
+  
+  <div class="tab-container">
+    <button class="tab-btn active" data-mode="entry" onclick="setMode('entry')">🟢 初回入場</button>
+    <button class="tab-btn" data-mode="exit" onclick="setMode('exit')">🚪 一時退場</button>
+    <button class="tab-btn" data-mode="re_entry" onclick="setMode('re_entry')">🔵 再入場</button>
+  </div>
+
+  <div id="current-mode-badge">現在のモード: 初回入場</div>
+
+  <div id="wrapper">
+    <div class="laser" id="laser"></div>
+    <video id="video" autoplay playsinline></video>
+
+    <div id="magsafe-overlay">
+      <div class="magsafe-circle" id="magsafe-circle">
+        <span class="magsafe-icon" id="magsafe-icon">✓</span>
+      </div>
+      <div id="magsafe-text">読み取り中...</div>
     </div>
   </div>
 
-  <header>
-    <div class="header-sub">一高祭 ・ 文化部門</div>
-    <div class="header-main">
-      <div class="school-logo">
-        <img src="logo.png" alt="校章">
-      </div>
-      QRチェックインシステム
-    </div>
-  </header>
-
-  <div class="main-content">
-    <div class="container">
-      <div id="result" class="result-panel">
-        読み取り待機中…
-      </div>
-
-      <div id="reader"></div>
-    </div>
-
-    <div class="controls">
-      <button id="startBtn">▶ 開始</button>
-      <button id="stopBtn">⏸ 停止</button>
-    </div>
-  </div>
-
-  <footer>
-    &lt;/&gt; Powered by Google Apps Script & HTML5-QRCode API
-  </footer>
+  <button id="start-btn" onclick="startCamera()">▶ カメラを開始する</button>
 
   <script>
-    let scanning = false;
-    let html5QrCode = null;
+    // デプロイしたGASのWebアプリURL（★ここにあなたのURLを入れてください）
+    const GAS_URL = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
 
-    function playBeep(type) {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    let currentMode = "entry"; // 初期モード
+    let video = document.getElementById("video");
+    let laser = document.getElementById("laser");
+    let isScanning = false;
+    let audioCtx = null;
 
+    // モード切り替え関数
+    function setMode(mode) {
+      currentMode = mode;
+      
+      // タブボタンの装飾更新
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+      
+      // テーマカラーとバッジテキストの更新
+      let badge = document.getElementById("current-mode-badge");
+      if (mode === "entry") {
+        document.documentElement.style.setProperty('--theme-color', '#2ed573');
+        badge.innerText = "現在のモード: 初回入場";
+      } else if (mode === "exit") {
+        document.documentElement.style.setProperty('--theme-color', '#ffa500');
+        badge.innerText = "現在のモード: 一時退場";
+      } else if (mode === "re_entry") {
+        document.documentElement.style.setProperty('--theme-color', '#1e90ff');
+        badge.innerText = "現在のモード: 再入場";
+      }
+    }
+
+    // サウンドエフェクト関数
+    function playTone(type) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(audioCtx.destination);
 
-      if (type === "success") {
-        osc.frequency.value = 880;
-      } else if (type === "error") {
-        osc.frequency.value = 220;
-      } else if (type === "already") {
-        osc.frequency.value = 440;
-      }
-
-      osc.start();
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
-      osc.stop(ctx.currentTime + 0.2);
-    }
-
-    // ★ MagSafeアニメーションを呼び出す関数
-    function triggerMagsafe() {
-      const overlay = document.getElementById("magsafeOverlay");
-      overlay.classList.add("show");
-
-      // 1.5秒後に自動でフワッと消す
-      setTimeout(() => {
-        overlay.classList.remove("show");
-      }, 1500);
-    }
-
-    async function startScanning() {
-      if (html5QrCode && scanning) return;
-      scanning = true;
-      document.getElementById("result").innerHTML = "📷 カメラ起動中…";
-
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("reader");
-      }
-
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length) {
-          const cameraId = cameras[0].id;
-          await html5QrCode.start(
-            cameraId,
-            { fps: 10, qrbox: 300, disableFlip: true },
-            (decodedText) => handleScan(decodedText)
-          );
-        } else {
-          document.getElementById("result").innerHTML = "❌ カメラが見つかりません";
-          scanning = false;
-        }
-      } catch (err) {
-        document.getElementById("result").innerHTML = "❌ カメラ起動エラー:<br>" + err;
-        scanning = false;
+      if (type === "ok") {
+        // 通常入場・再入場（高音ピピッ）
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.stop(audioCtx.currentTime + 0.15);
+      } else if (type === "exit") {
+        // 退場（少し中音のピピッ）
+        osc.frequency.setValueAtTime(587, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.stop(audioCtx.currentTime + 0.15);
+      } else {
+        // エラー（低音ブブー）
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.stop(audioCtx.currentTime + 0.4);
       }
     }
 
-    function stopScanning() {
-      if (!html5QrCode || !scanning) return;
-      html5QrCode.stop().then(() => {
-        scanning = false;
-        document.getElementById("result").innerHTML = "⏸ 読み取り停止中";
-      }).catch(err => {
-        console.error("停止エラー:", err);
-      });
+    // カメラ起動
+    function startCamera() {
+      document.getElementById("start-btn").style.display = "none";
+      setMode("entry"); // 初期カラーをセット
+      
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => {
+          video.srcObject = stream;
+          isScanning = true;
+          requestAnimationFrame(scanQRCode);
+        })
+        .catch(err => {
+          alert("カメラの起動に失敗しました。権限を許可してください。");
+          document.getElementById("start-btn").style.display = "inline-block";
+        });
     }
 
-    function handleScan(decodedText) {
-      if (!scanning) return;
+    // QRコードスキャンループ
+    function scanQRCode() {
+      if (!isScanning) return;
 
-      scanning = false;
-      setTimeout(() => {
-        scanning = true;
-      }, 3500);
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        // キャンバスを作成してビデオ画像を解析
+        let canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        let ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
 
-      document.getElementById("result").innerHTML = "⏳ サーバーお問い合わせ中...<br>しばらくお待ちください";
-
-      let ticketId;
-      try {
-        const url = new URL(decodedText);
-        ticketId = url.searchParams.get("id");
-      } catch (e) {
-        try {
-          const url = new URL(decodeURIComponent(decodedText));
-          ticketId = url.searchParams.get("id");
-        } catch (e2) {
-          ticketId = decodedText;
+        if (code && code.data) {
+          // QRコードを発見したら一時停止して処理
+          isScanning = false;
+          processTicket(code.data);
+          return;
         }
       }
+      requestAnimationFrame(scanQRCode);
+    }
 
-      if (!ticketId) {
-        playBeep("error");
-        document.getElementById("result").innerHTML =
-          '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
+    // GASへデータを送信してチェックイン
+    function processTicket(qrData) {
+      let ticketId = "";
+      
+      // URLからIDを抽出
+      if (qrData.includes("?id=")) {
+        ticketId = qrData.split("?id=")[1].split("&")[0];
+      } else {
+        // 不正なQRの場合
+        triggerMagsafe("error", "❌ 無効なQRコード", "invalid");
+        logInvalidQR(qrData);
         return;
       }
 
-      const gasUrl = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
+      triggerMagsafe("loading", "通信中...", "");
 
-      fetch(gasUrl + "?id=" + ticketId, {
-        method: "POST"
+      // GASにJSON形式でデータをPOST送信
+      fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          ticketId: ticketId,
+          mode: currentMode
+        })
       })
       .then(res => res.text())
-      .then(text => {
-        if (text === "already") {
-          playBeep("already");
-          document.getElementById("result").innerHTML =
-            '<span class="already">⚠️ このチケットはすでにチェックイン済みです</span>';
-        } else if (text === "notfound") {
-          playBeep("error");
-          document.getElementById("result").innerHTML =
-            '<span class="error">❌ 無効なQRコードです<br>もう一度お試しください</span>';
+      .then(result => {
+        if (result === "OK") {
+          triggerMagsafe("ok", "✅ 入場OK", "ok");
+        } else if (result === "EXIT_OK") {
+          triggerMagsafe("exit", "🚪 一時退場完了", "exit");
+        } else if (result === "RE_ENTRY_OK") {
+          triggerMagsafe("reentry", "🔄 再入場OK", "ok");
+        } else if (result === "already" || result === "ALREADY_IN") {
+          triggerMagsafe("error", "⚠️ すでに滞在中です", "error");
+        } else if (result === "ALREADY_OUT") {
+          triggerMagsafe("error", "⚠️ すでに退場済みです", "error");
+        } else if (result === "ERROR_NOT_IN_YET") {
+          triggerMagsafe("error", "❌ まだ一度も入場していません", "error");
         } else {
-          playBeep("success");
-          
-          // 【★ここがポイント！】チェックイン成功時にアニメーションを起動
-          triggerMagsafe();
-
-          document.getElementById("result").innerHTML =
-            '<span class="success">✅ チェックイン完了！<br>文化部門をお楽しみください！</span>';
+          triggerMagsafe("error", "❌ チケットが見つかりません", "error");
         }
       })
-      .catch(() => {
-        playBeep("error");
-        document.getElementById("result").innerHTML =
-          '<span class="error">エラーが発生しました</span>';
+      .catch(err => {
+        triggerMagsafe("error", "📡 通信エラーが発生しました", "error");
       });
     }
 
-    document.getElementById("startBtn").addEventListener("click", startScanning);
-    document.getElementById("stopBtn").addEventListener("click", stopScanning);
+    // 不正QRコードのログをGASに送る
+    function logInvalidQR(rawCode) {
+      fetch(GAS_URL + "?mode=log_invalid&data=" + encodeURIComponent(rawCode), { method: "POST" });
+    }
+
+    // MagSafe風アニメーションの表示制御
+    function triggerMagsafe(statusClass, text, soundType) {
+      let overlay = document.getElementById("magsafe-overlay");
+      let icon = document.getElementById("magsafe-icon");
+      let txtNode = document.getElementById("magsafe-text");
+
+      // クラスを一旦リセット
+      overlay.className = "active";
+      
+      if (statusClass === "loading") {
+        icon.innerText = "⏳";
+        txtNode.innerText = text;
+        return;
+      }
+
+      // ステータスに応じた装飾
+      overlay.classList.add("status-" + statusClass);
+      txtNode.innerText = text;
+      
+      if (statusClass === "ok" || statusClass === "reentry") icon.innerText = "✓";
+      if (statusClass === "exit") icon.innerText = "🚪";
+      if (statusClass === "error") icon.innerText = "⚠️";
+
+      // 音を鳴らす
+      if (soundType) playTone(soundType);
+
+      // 2.5秒後にアニメーションを閉じてスキャンを再開
+      setTimeout(() => {
+        overlay.className = "";
+        isScanning = true;
+        requestAnimationFrame(scanQRCode);
+      }, 2500);
+    }
   </script>
 </body>
 </html>
