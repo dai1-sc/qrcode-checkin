@@ -321,12 +321,25 @@
     function processTicket(qrData) {
       let ticketId = "";
       
-      // URLからIDを抽出
-      if (qrData.includes("?id=")) {
-        ticketId = qrData.split("?id=")[1].split("&")[0];
+      // URLデコード（%3F などを ? に戻す）をしてからIDを抽出する安全設計
+      let decodedData = decodeURIComponent(qrData);
+
+      if (decodedData.includes("id=")) {
+        // 「id=」の後ろにある「TKT-xxxx」の部分だけを綺麗に切り出す
+        ticketId = decodedData.split("id=")[1].split("&")[0].trim();
+      } else if (decodedData.startsWith("TKT-")) {
+        // URLではなく、IDがそのまま送られてきた場合にも対応
+        ticketId = decodedData.trim();
       } else {
-        // 不正なQRの場合
+        // それでもIDが見つからない場合
         triggerMagsafe("error", "❌ 無効なQRコード", "invalid");
+        logInvalidQR(qrData);
+        return;
+      }
+
+      // 万が一切り出したIDが空っぽだった場合の防衛策
+      if (!ticketId) {
+        triggerMagsafe("error", "❌ IDの抽出に失敗", "invalid");
         logInvalidQR(qrData);
         return;
       }
