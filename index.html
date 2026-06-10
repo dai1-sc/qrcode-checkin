@@ -7,8 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root {
-      --theme-color: #002366; /* 初期は入場モード（ネイビー） */
-      --success-color: #2ed573;
+      --theme-color: #2ed573; /* 初期は入場モード（グリーン） */
     }
     
     body {
@@ -27,21 +26,21 @@
       background: #222;
       padding: 5px;
       margin: 15px auto;
-      border-radius: 8px;
+      border-radius: 12px;
       max-width: 90%;
       box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
 
     .tab-btn {
       flex: 1;
-      padding: 10px;
+      padding: 12px 10px;
       background: transparent;
       border: none;
       color: #aaa;
       font-size: 14px;
       font-weight: bold;
       cursor: pointer;
-      border-radius: 6px;
+      border-radius: 8px;
       transition: all 0.2s;
     }
 
@@ -51,30 +50,35 @@
 
     h1 {
       font-size: 20px;
-      margin: 10px 0 5px 0;
+      margin: 15px 0 5px 0;
       letter-spacing: 1px;
     }
 
     #current-mode-badge {
       display: inline-block;
-      padding: 4px 12px;
+      padding: 5px 14px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: bold;
       background: var(--theme-color);
+      color: #000;
       margin-bottom: 15px;
-      transition: background 0.3s;
+      transition: all 0.3s;
+    }
+    /* 退場・再入場時の文字色調整 */
+    #current-mode-badge.light-text {
+      color: #fff;
     }
 
     #wrapper {
       position: relative;
       width: 90%;
-      max-width: 400px;
+      max-width: 360px;
       margin: 0 auto;
       aspect-ratio: 1 / 1;
-      border-radius: 24px;
+      border-radius: 28px;
       overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
       background: #000;
     }
 
@@ -84,49 +88,50 @@
       object-fit: cover;
     }
 
-    /* スキャン線のレーザー演出 */
-    .laser {
+    /* 🎯 復活：静かな正方形のスキャン枠（通常時は白っぽく、検知するとモード色に光る） */
+    .scan-frame {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 3px;
-      background: var(--theme-color);
-      box-shadow: 0 0 12px var(--theme-color);
-      animation: scan 2s linear infinite;
+      top: 15%;
+      left: 15%;
+      width: 70%;
+      height: 70%;
+      border: 3px dashed rgba(255, 255, 255, 0.4);
+      border-radius: 16px;
+      box-sizing: border-box;
       z-index: 5;
-      transition: background 0.3s, box-shadow 0.3s;
+      transition: all 0.2s ease;
     }
-
-    @keyframes scan {
-      0% { top: 0%; }
-      50% { top: 100%; }
-      100% { top: 0%; }
+    
+    /* QRコードを検知した瞬間に枠を光らせるクラス */
+    .scan-frame.detected {
+      border: 4px solid var(--theme-color);
+      box-shadow: 0 0 25px var(--theme-color);
+      background: rgba(255, 255, 255, 0.1);
     }
 
     /* 開始ボタン */
     #start-btn {
-      margin-top: 20px;
-      padding: 14px 28px;
+      margin-top: 25px;
+      padding: 16px 32px;
       font-size: 16px;
       font-weight: bold;
-      background: var(--theme-color);
-      color: white;
+      background: #2ed573;
+      color: black;
       border: none;
       border-radius: 50px;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0,35,102,0.4);
+      box-shadow: 0 4px 15px rgba(46,213,115,0.4);
       transition: all 0.3s;
     }
 
-    /* MagSafe風アニメーションオーバーレイ */
+    /* 🔥 完全復活：MagSafe風アニメーションオーバーレイ */
     #magsafe-overlay {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.85);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -138,47 +143,48 @@
     }
 
     .magsafe-circle {
-      width: 140px;
-      height: 140px;
+      width: 150px;
+      height: 150px;
       border: 8px solid transparent;
       border-radius: 50%;
       display: flex;
       justify-content: center;
       align-items: center;
-      transform: scale(0.5);
-      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform: scale(0.4);
+      transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
     .magsafe-icon {
-      font-size: 50px;
+      font-size: 60px;
       opacity: 0;
-      transform: scale(0.5);
-      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform: scale(0.4);
+      transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
     #magsafe-text {
-      margin-top: 20px;
+      margin-top: 25px;
       font-size: 18px;
       font-weight: bold;
       color: white;
+      padding: 0 20px;
     }
 
-    /* アニメーション発火用クラス */
+    /* アニメーション起動時のエフェクトクラス */
     #magsafe-overlay.active { opacity: 1; }
     #magsafe-overlay.active .magsafe-circle { transform: scale(1); }
     #magsafe-overlay.active .magsafe-icon { opacity: 1; transform: scale(1); }
 
-    /* ステータス別の色定義 */
-    .status-ok .magsafe-circle { border-color: #2ed573; box-shadow: 0 0 20px rgba(46,213,115,0.4); }
+    /* 各ステータスのMagSafeカラー */
+    .status-ok .magsafe-circle { border-color: #2ed573; box-shadow: 0 0 30px rgba(46,213,115,0.6); }
     .status-ok .magsafe-icon { color: #2ed573; }
     
-    .status-exit .magsafe-circle { border-color: #ffa500; box-shadow: 0 0 20px rgba(255,165,0,0.4); }
+    .status-exit .magsafe-circle { border-color: #ffa500; box-shadow: 0 0 30px rgba(255,165,0,0.6); }
     .status-exit .magsafe-icon { color: #ffa500; }
 
-    .status-reentry .magsafe-circle { border-color: #1e90ff; box-shadow: 0 0 20px rgba(30,144,255,0.4); }
+    .status-reentry .magsafe-circle { border-color: #1e90ff; box-shadow: 0 0 30px rgba(30,144,255,0.6); }
     .status-reentry .magsafe-icon { color: #1e90ff; }
 
-    .status-error .magsafe-circle { border-color: #ff4757; box-shadow: 0 0 20px rgba(255,71,87,0.4); }
+    .status-error .magsafe-circle { border-color: #ff4757; box-shadow: 0 0 30px rgba(255,71,87,0.6); }
     .status-error .magsafe-icon { color: #ff4757; }
   </style>
 </head>
@@ -195,7 +201,7 @@
   <div id="current-mode-badge">現在のモード: 初回入場</div>
 
   <div id="wrapper">
-    <div class="laser" id="laser"></div>
+    <div class="scan-frame" id="scan-frame"></div>
     <video id="video" autoplay playsinline></video>
 
     <div id="magsafe-overlay">
@@ -210,11 +216,11 @@
 
   <script>
     // デプロイしたGASのWebアプリURL（★ここにあなたのURLを入れてください）
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
+    const GAS_URL = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
 
-    let currentMode = "entry"; // 初期モード
+    let currentMode = "entry"; 
     let video = document.getElementById("video");
-    let laser = document.getElementById("laser");
+    let scanFrame = document.getElementById("scan-frame");
     let isScanning = false;
     let audioCtx = null;
 
@@ -222,21 +228,22 @@
     function setMode(mode) {
       currentMode = mode;
       
-      // タブボタンの装飾更新
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
       
-      // テーマカラーとバッジテキストの更新
       let badge = document.getElementById("current-mode-badge");
       if (mode === "entry") {
         document.documentElement.style.setProperty('--theme-color', '#2ed573');
         badge.innerText = "現在のモード: 初回入場";
+        badge.classList.remove('light-text');
       } else if (mode === "exit") {
         document.documentElement.style.setProperty('--theme-color', '#ffa500');
         badge.innerText = "現在のモード: 一時退場";
+        badge.classList.remove('light-text');
       } else if (mode === "re_entry") {
         document.documentElement.style.setProperty('--theme-color', '#1e90ff');
         badge.innerText = "現在のモード: 再入場";
+        badge.classList.add('light-text');
       }
     }
 
@@ -249,21 +256,18 @@
       gain.connect(audioCtx.destination);
 
       if (type === "ok") {
-        // 通常入場・再入場（高音ピピッ）
         osc.frequency.setValueAtTime(880, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         osc.start();
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
         osc.stop(audioCtx.currentTime + 0.15);
       } else if (type === "exit") {
-        // 退場（少し中音のピピッ）
         osc.frequency.setValueAtTime(587, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         osc.start();
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
         osc.stop(audioCtx.currentTime + 0.15);
       } else {
-        // エラー（低音ブブー）
         osc.type = "sawtooth";
         osc.frequency.setValueAtTime(150, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
@@ -276,7 +280,7 @@
     // カメラ起動
     function startCamera() {
       document.getElementById("start-btn").style.display = "none";
-      setMode("entry"); // 初期カラーをセット
+      setMode("entry");
       
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(stream => {
@@ -295,7 +299,6 @@
       if (!isScanning) return;
 
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        // キャンバスを作成してビデオ画像を解析
         let canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -308,9 +311,14 @@
         });
 
         if (code && code.data) {
-          // QRコードを発見したら一時停止して処理
           isScanning = false;
-          processTicket(code.data);
+          // 🎯 QRコードを検知した瞬間に、四角枠をピカッとモード色に光らせる
+          scanFrame.classList.add("detected");
+          
+          // ほんの一瞬光らせてから、チェックイン処理へ
+          setTimeout(() => {
+            processTicket(code.data);
+          }, 150);
           return;
         }
       }
@@ -320,33 +328,27 @@
     // GASへデータを送信してチェックイン
     function processTicket(qrData) {
       let ticketId = "";
-      
-      // URLデコード（%3F などを ? に戻す）をしてからIDを抽出する安全設計
       let decodedData = decodeURIComponent(qrData);
 
       if (decodedData.includes("id=")) {
-        // 「id=」の後ろにある「TKT-xxxx」の部分だけを綺麗に切り出す
         ticketId = decodedData.split("id=")[1].split("&")[0].trim();
       } else if (decodedData.startsWith("TKT-")) {
-        // URLではなく、IDがそのまま送られてきた場合にも対応
         ticketId = decodedData.trim();
       } else {
-        // それでもIDが見つからない場合
         triggerMagsafe("error", "❌ 無効なQRコード", "invalid");
         logInvalidQR(qrData);
         return;
       }
 
-      // 万が一切り出したIDが空っぽだった場合の防衛策
       if (!ticketId) {
         triggerMagsafe("error", "❌ IDの抽出に失敗", "invalid");
         logInvalidQR(qrData);
         return;
       }
 
+      // 「通信中」の状態を作る
       triggerMagsafe("loading", "通信中...", "");
 
-      // GASにJSON形式でデータをPOST送信
       fetch(GAS_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -357,17 +359,17 @@
       .then(res => res.text())
       .then(result => {
         if (result === "OK") {
-          triggerMagsafe("ok", "✅ 入場OK", "ok");
+          triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
         } else if (result === "EXIT_OK") {
-          triggerMagsafe("exit", "🚪 一時退場完了", "exit");
+          triggerMagsafe("exit", "🚪 一時退場しました", "exit");
         } else if (result === "RE_ENTRY_OK") {
-          triggerMagsafe("reentry", "🔄 再入場OK", "ok");
+          triggerMagsafe("reentry", "🔄 再入場手続き完了", "ok");
         } else if (result === "already" || result === "ALREADY_IN") {
-          triggerMagsafe("error", "⚠️ すでに滞在中です", "error");
+          triggerMagsafe("error", "⚠️ すでに滞在中（重複）", "error");
         } else if (result === "ALREADY_OUT") {
           triggerMagsafe("error", "⚠️ すでに退場済みです", "error");
         } else if (result === "ERROR_NOT_IN_YET") {
-          triggerMagsafe("error", "❌ まだ一度も入場していません", "error");
+          triggerMagsafe("error", "❌ まだ入場していません", "error");
         } else {
           triggerMagsafe("error", "❌ チケットが見つかりません", "error");
         }
@@ -377,7 +379,6 @@
       });
     }
 
-    // 不正QRコードのログをGASに送る
     function logInvalidQR(rawCode) {
       fetch(GAS_URL + "?mode=log_invalid&data=" + encodeURIComponent(rawCode), { method: "POST" });
     }
@@ -385,35 +386,37 @@
     // MagSafe風アニメーションの表示制御
     function triggerMagsafe(statusClass, text, soundType) {
       let overlay = document.getElementById("magsafe-overlay");
+      let circle = document.getElementById("magsafe-circle");
       let icon = document.getElementById("magsafe-icon");
       let txtNode = document.getElementById("magsafe-text");
 
-      // クラスを一旦リセット
-      overlay.className = "active";
+      // 一旦すべての装飾クラスをまっさらにリセット
+      overlay.className = "";
       
       if (statusClass === "loading") {
+        overlay.classList.add("active");
         icon.innerText = "⏳";
         txtNode.innerText = text;
         return;
       }
 
-      // ステータスに応じた装飾
-      overlay.classList.add("status-" + statusClass);
+      // 状態クラスを追加してアニメーションをトリガー
+      overlay.className = "active status-" + statusClass;
       txtNode.innerText = text;
       
       if (statusClass === "ok" || statusClass === "reentry") icon.innerText = "✓";
       if (statusClass === "exit") icon.innerText = "🚪";
       if (statusClass === "error") icon.innerText = "⚠️";
 
-      // 音を鳴らす
       if (soundType) playTone(soundType);
 
-      // 2.5秒後にアニメーションを閉じてスキャンを再開
+      // 受付を爆速にするため、アニメ表示時間を1.5秒に短縮
       setTimeout(() => {
         overlay.className = "";
+        scanFrame.classList.remove("detected"); // 光る枠線を元に戻す
         isScanning = true;
         requestAnimationFrame(scanQRCode);
-      }, 2500);
+      }, 1500);
     }
   </script>
 </body>
