@@ -43,16 +43,13 @@
       justify-content: center;
       gap: 12px;
     }
-    
-    /* ✨ 修正：logo.png 用の美しいスタイル */
     .header-logo {
       width: 32px;
       height: 32px;
       object-fit: contain;
-      border-radius: 4px; /* 必要に応じて少し角を丸めて滑らかに */
+      border-radius: 4px;
       background: transparent;
     }
-    
     .header-title {
       font-size: 24px;
       margin: 0;
@@ -154,7 +151,7 @@
       background: rgba(255, 255, 255, 0.1);
     }
 
-    /* 元UIに忠実な「読み取り停止中」画面 */
+    /* 「読み取り停止中」画面 */
     #pause-message {
       position: absolute;
       top: 0;
@@ -184,6 +181,10 @@
       font-size: 18px;
       color: #999;
       font-weight: 500;
+      padding: 30px;
+      text-align: left;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     /* コントロールボタンセクション */
@@ -239,7 +240,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.75);
+      background: rgba(255, 255, 255, 0.85); /* 文字を読みやすくするため白を少し濃く */
       backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
@@ -249,6 +250,8 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s ease;
+      padding: 20px;
+      box-sizing: border-box;
     }
     #magsafe-overlay.active { opacity: 1; }
 
@@ -310,15 +313,36 @@
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
     @keyframes drawCheck { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 0; } }
 
+    /* メッセージのテキスト領域 */
     #magsafe-text {
-      margin-top: 20px;
-      font-size: 16px;
+      margin-top: 15px;
+      font-size: 18px;
       font-weight: bold;
       color: #222;
       opacity: 0;
       transform: translateY(10px);
+      text-align: center;
     }
-    #magsafe-overlay.animate #magsafe-text { animation: textFadeIn 0.3s ease-out 0.2s forwards; }
+    
+    /* 🌟 新設：スタッフ向け指示用のサブテキストスタイル */
+    #magsafe-subtext {
+      margin-top: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #ff4757; /* デフォルトは警告用の赤 */
+      background: rgba(255, 71, 87, 0.1);
+      padding: 6px 12px;
+      border-radius: 6px;
+      opacity: 0;
+      transform: translateY(10px);
+      text-align: center;
+      max-width: 90%;
+    }
+
+    #magsafe-overlay.animate #magsafe-text,
+    #magsafe-overlay.animate #magsafe-subtext { 
+      animation: textFadeIn 0.3s ease-out 0.2s forwards; 
+    }
     @keyframes textFadeIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
 
     /* 通信中（Loading） */
@@ -336,6 +360,7 @@
     .status-exit { --magsafe-color: #ffa500; }
     .status-reentry { --magsafe-color: #1e90ff; }
     .status-error { --magsafe-color: #ff4757; }
+    .status-warning { --magsafe-color: #ffa500; } /* モード違い用のオレンジ警告 */
   </style>
 </head>
 <body>
@@ -371,11 +396,11 @@
           <div id="magsafe-icon-box"></div>
         </div>
         <div id="magsafe-text">読み取り中...</div>
-      </div>
+        <div id="magsafe-subtext"></div> </div>
     </div>
 
     <div class="card">
-      <div class="result-placeholder" id="result-placeholder">ここにスキャン結果が表示されます</div>
+      <div class="result-placeholder" id="result-placeholder" style="text-align: center;">ここにスキャン結果が表示されます</div>
     </div>
   </main>
 
@@ -538,13 +563,21 @@
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        triggerMagsafe("error", "無効なQRコード", "invalid");
+        // 【改善】無効な形式のQRコードが読まれた場合
+        triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの実物を確認してください");
+        resultPlaceholder.innerHTML = `
+          <div style="border-left: 6px solid #ff4757; padding-left: 15px;">
+            <b style="color:#ff4757; font-size:24px;">【エラー】不正なQRコード</b><br><br>
+            <b>原因:</b> 当システムの形式ではないQRコードが読み取られました。<br>
+            <b style="color:#ff4757;">[受付指示]:</b> 紙のチケット、または正規の画面を見せてもらい、手動での確認を行ってください。
+          </div>`;
         logInvalidQR(qrData);
         return;
       }
 
       if (!ticketId) {
-        triggerMagsafe("error", "IDの抽出に失敗", "invalid");
+        triggerMagsafe("error", "❌ ID抽出エラー", "invalid", "⚠️ チケットの確認をお願いします");
+        resultPlaceholder.innerHTML = `<b style="color:#ff4757; font-size:24px;">【エラー】データ破損</b><br><br>IDの抽出に失敗しました。実物を確認してください。`;
         logInvalidQR(qrData);
         return;
       }
@@ -561,27 +594,57 @@
       .then(res => res.text())
       .then(result => {
         if (result === "OK") {
-          triggerMagsafe("ok", "入場手続き完了", "ok");
-          resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br>ID: ${ticketId}<br>時刻: ${new Date().toLocaleTimeString()}`;
+          triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
+          resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } else if (result === "EXIT_OK") {
-          triggerMagsafe("exit", "一時退場手続き完了", "exit");
-          resultPlaceholder.innerHTML = `<b style="color:#ffa500; font-size:24px;">【退場】一時退場</b><br><br>ID: ${ticketId}<br>時刻: ${new Date().toLocaleTimeString()}`;
+          triggerMagsafe("exit", "🚪 一時退場しました", "exit");
+          resultPlaceholder.innerHTML = `<b style="color:#ffa500; font-size:24px;">【退場】一時退場確認</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } else if (result === "RE_ENTRY_OK") {
-          triggerMagsafe("reentry", "再入場手続き完了", "ok");
-          resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br>ID: ${ticketId}<br>時刻: ${new Date().toLocaleTimeString()}`;
-        } else {
+          triggerMagsafe("reentry", "🔄 再入場手続き完了", "ok");
+          resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
+        } 
+        
+        // ⚡ 【改善】すでに一度退出手続きをしたチケットを、誤って「初回入場」で読み込んだ時
+        else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
+          triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
+          resultPlaceholder.innerHTML = `
+            <div style="border-left: 6px solid #ffa500; padding-left: 15px;">
+              <b style="color:#ffa500; font-size:24px;">【注意】再入場対象のチケットです</b><br><br>
+              <b>ステータス:</b> すでに一時退場の手続きが完了しています。<br>
+              <b style="color:#002b75; font-size:18px;">[受付指示]: 上部の青いタブ「🔵 再入場」をタップして、もう一度スキャンしてください。</b><br><br>
+              <b>ID:</b> ${ticketId}
+            </div>`;
+        } 
+        
+        // その他のエラー分岐
+        else {
           let errMsg = "エラーが発生しました";
-          if (result === "already" || result === "ALREADY_IN") errMsg = "すでに滞年中（重複）";
-          if (result === "ALREADY_OUT") errMsg = "すでに退場済みです";
-          if (result === "ERROR_NOT_IN_YET") errMsg = "まだ入場していません";
+          let subInst = "⚠️ チケットの確認をお願いします";
           
-          triggerMagsafe("error", errMsg, "error");
-          resultPlaceholder.innerHTML = `<b style="color:#ff4757; font-size:24px;">【エラー】</b><br><br>${errMsg}<br>ID: ${ticketId}`;
+          if (result === "already" || result === "ALREADY_IN") {
+            errMsg = "⚠️ すでに滞在中（重複）";
+            subInst = "既に中に入っているチケットです。不正入場にご注意ください。";
+          } else if (result === "ALREADY_OUT") {
+            errMsg = "⚠️ すでに退場済みです";
+            subInst = "このチケットは退場処理がされています。";
+          } else if (result === "ERROR_NOT_IN_YET") {
+            errMsg = "❌ まだ入場していません";
+            subInst = "初回入場、または再入場の設定が間違っている可能性があります。";
+          }
+          
+          triggerMagsafe("error", errMsg, "error", subInst);
+          resultPlaceholder.innerHTML = `
+            <div style="border-left: 6px solid #ff4757; padding-left: 15px;">
+              <b style="color:#ff4757; font-size:24px;">【システムエラー】</b><br><br>
+              <b>原因:</b> ${errMsg}<br>
+              <b>[受付指示]:</b> ${subInst}<br><br>
+              <b>ID:</b> ${ticketId}
+            </div>`;
         }
       })
       .catch(err => {
-        triggerMagsafe("error", "通信エラー", "error");
-        resultPlaceholder.innerHTML = `<b style="color:#ff4757; font-size:24px;">通信エラー</b><br><br>GASとの接続に失敗しました。`;
+        triggerMagsafe("error", "📡 通信エラー", "error", "電波状況を確認してください");
+        resultPlaceholder.innerHTML = `<b style="color:#ff4757; font-size:24px;">通信エラー</b><br><br>GASへのアクセスに失敗しました。オンラインであることを確認してください。`;
       });
     }
 
@@ -589,13 +652,17 @@
       fetch(GAS_URL + "?mode=log_invalid&data=" + encodeURIComponent(rawCode), { method: "POST" });
     }
 
-    function triggerMagsafe(statusClass, text, soundType) {
+    // 引数にサブ指示テキスト「subText」を追加
+    function triggerMagsafe(statusClass, text, soundType, subText = "") {
       let overlay = document.getElementById("magsafe-overlay");
       let iconBox = document.getElementById("magsafe-icon-box");
       let txtNode = document.getElementById("magsafe-text");
+      let subTxtNode = document.getElementById("magsafe-subtext");
 
       overlay.className = "";
       iconBox.innerHTML = "";
+      subTxtNode.innerText = "";
+      subTxtNode.style.display = "none";
 
       if (statusClass === "loading") {
         overlay.classList.add("active", "loading");
@@ -616,7 +683,8 @@
             <polyline class="draw-item" points="11 9 15 12 11 15"></polyline>
             <line class="draw-item" x1="15" y1="12" x2="3" y2="12"></line>
           </svg>`;
-      } else if (statusClass === "error") {
+      } else if (statusClass === "error" || statusClass === "warning") {
+        // エラー、または再入場案内用の❌ / ⚠️ マーク
         svgContent = `
           <svg class="magsafe-svg-icon" viewBox="0 0 24 24">
             <line class="draw-item" x1="18" y1="6" x2="6" y2="18"></line>
@@ -626,10 +694,27 @@
 
       iconBox.innerHTML = svgContent;
       txtNode.innerText = text;
+      
+      // サブ指示テキストがある場合は表示
+      if (subText) {
+        subTxtNode.innerText = subText;
+        subTxtNode.style.display = "block";
+        // モード警告の時は背景をオレンジ寄りに変更
+        if (statusClass === "warning") {
+          subTxtNode.style.color = "#d97706";
+          subTxtNode.style.background = "rgba(217, 119, 6, 0.1)";
+        } else {
+          subTxtNode.style.color = "#ff4757";
+          subTxtNode.style.background = "rgba(255, 71, 87, 0.1)";
+        }
+      }
 
       overlay.className = "active animate status-" + statusClass;
 
       if (soundType) playTone(soundType);
+
+      // 警告表示の時は確認時間を稼ぐため、通常1.8秒のところを「2.5秒」表示に自動延長
+      let displayTime = (statusClass === "warning" || statusClass === "error") ? 2500 : 1800;
 
       setTimeout(() => {
         overlay.className = "";
@@ -639,7 +724,7 @@
           isScanning = true;
           requestAnimationFrame(scanQRCode);
         }
-      }, 1800);
+      }, displayTime);
     }
   </script>
 </body>
