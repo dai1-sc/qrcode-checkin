@@ -276,7 +276,7 @@
     }
 
     /* ========================================================
-        🍏 MagSafe風一筆書きSVGアニメーション
+        🍏 MagSafe風一筆書きSVGアニメーション（速度調整版）
     ======================================================== */
     #magsafe-overlay {
       position: absolute;
@@ -284,7 +284,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.88);
+      background: rgba(255, 255, 255, 0.9);
       backdrop-filter: blur(10px);
       display: flex;
       flex-direction: column;
@@ -293,7 +293,7 @@
       z-index: 10;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s ease;
+      transition: opacity 0.25s ease;
       padding: 20px;
       box-sizing: border-box;
     }
@@ -310,7 +310,7 @@
       align-items: center;
       box-sizing: border-box;
       transform: scale(0.8);
-      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15);
     }
     #magsafe-overlay.active .magsafe-ring { transform: scale(1); }
 
@@ -330,8 +330,9 @@
       stroke-dasharray: 503;
       stroke-dashoffset: 503;
     }
+    /* 外円を描く時間を 0.4秒 ➔ 0.65秒 にしてなめらかに */
     #magsafe-overlay.animate .magsafe-progress circle {
-      animation: fillCircle 0.4s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+      animation: fillCircle 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards;
     }
 
     .magsafe-svg-icon {
@@ -349,29 +350,29 @@
       stroke-dasharray: 100;
       stroke-dashoffset: 100;
     }
+    /* チェックマーク等の描画時間を 0.3秒 ➔ 0.6秒 に、開始を少しディレイ */
     #magsafe-overlay.animate .magsafe-svg-icon .draw-item {
-      animation: drawCheck 0.3s 0.15s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+      animation: drawCheck 0.6s 0.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
     }
 
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
     @keyframes drawCheck { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
 
     #magsafe-text {
-      margin-top: 15px;
-      font-size: 18px;
+      margin-top: 20px;
+      font-size: 19px;
       font-weight: bold;
       color: #111;
       text-align: center;
-      transition: transform 0.2s;
     }
     
     #magsafe-subtext {
-      margin-top: 8px;
-      font-size: 13px;
+      margin-top: 10px;
+      font-size: 14px;
       font-weight: bold;
       color: #ff4757;
       background: rgba(255, 71, 87, 0.08);
-      padding: 6px 12px;
+      padding: 6px 14px;
       border-radius: 6px;
       text-align: center;
       max-width: 90%;
@@ -594,7 +595,6 @@
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        // 形式が全く違う外部コード
         showInvalidTicketError(qrData);
         return;
       }
@@ -615,7 +615,6 @@
       })
       .then(res => res.text())
       .then(result => {
-        // 🟩 成功パターン
         if (result === "OK") {
           triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
@@ -627,7 +626,6 @@
           resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } 
         
-        // 🟧 モード違い（一時退場済みなのに「初回入場」で読んだ）
         else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
           triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
           resultPlaceholder.innerHTML = `
@@ -640,7 +638,6 @@
             </div>`;
         } 
         
-        // 🟥 すでに滞在中（重複エラー）
         else if (result === "already" || result === "ALREADY_IN") {
           triggerMagsafe("error", "⚠️ すでに滞在中（重複）", "error", "⚠️ 重複エラー：入場済みチケットです");
           resultPlaceholder.innerHTML = `
@@ -653,9 +650,6 @@
             </div>`;
         }
         
-        // 🌟【引き算方式に大修正！】
-        // 上記の正常・重複・モード違いに当てはまらないGASからの返答は、
-        // 「TKTの文字をいじった台帳に存在しない無効コード」とみなし、すべて『チケットの確認』画面にする！
         else {
           showInvalidTicketError(qrData);
         }
@@ -670,7 +664,6 @@
       });
     }
 
-    // 🌟 無効なチケット用の共通処理関数（これで文言表示を一括固定！）
     function showInvalidTicketError(qrData) {
       triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
       resultPlaceholder.innerHTML = `
@@ -743,7 +736,9 @@
 
       if (soundType) playTone(soundType);
 
-      let displayTime = (statusClass === "warning" || statusClass === "error") ? 3000 : 1600;
+      // 🌟【表示時間のキープを調整】
+      // 成功時を 1.6秒 ➔ 2.3秒、エラー・警告時を 3.0秒 ➔ 3.5秒 に延長
+      let displayTime = (statusClass === "warning" || statusClass === "error") ? 3500 : 2300;
 
       setTimeout(() => {
         overlay.className = "";
