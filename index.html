@@ -240,8 +240,8 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.85); /* 文字を読みやすくするため白を少し濃く */
-      backdrop-filter: blur(8px);
+      background: rgba(255, 255, 255, 0.88); /* ブラー背景をより見やすく */
+      backdrop-filter: blur(10px);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -249,7 +249,7 @@
       z-index: 10;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.2s ease; /* 応答性を上げるため0.3s -> 0.2sに短縮 */
       padding: 20px;
       box-sizing: border-box;
     }
@@ -258,15 +258,15 @@
     .magsafe-ring {
       width: 160px;
       height: 160px;
-      border: 5px solid rgba(0, 0, 0, 0.06);
+      border: 5px solid rgba(0, 0, 0, 0.05);
       border-radius: 50%;
       position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
       box-sizing: border-box;
-      transform: scale(0.6);
-      transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transform: scale(0.8); /* スケール変化を控えめにして表示速度向上 */
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.15);
     }
     #magsafe-overlay.active .magsafe-ring { transform: scale(1); }
 
@@ -287,7 +287,7 @@
       stroke-dashoffset: 503;
     }
     #magsafe-overlay.animate .magsafe-progress circle {
-      animation: fillCircle 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      animation: fillCircle 0.4s cubic-bezier(0.1, 0.8, 0.2, 1) forwards; /* アニメ速度を0.6秒から0.4秒へ爆速化 */
     }
 
     /* 一筆書き用SVGアイコン */
@@ -307,7 +307,7 @@
       stroke-dashoffset: 100;
     }
     #magsafe-overlay.animate .magsafe-svg-icon .draw-item {
-      animation: drawCheck 0.45s 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      animation: drawCheck 0.3s 0.15s cubic-bezier(0.1, 0.8, 0.2, 1) forwards; /* 描画遅延を限界まで短縮 */
     }
 
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
@@ -318,49 +318,39 @@
       margin-top: 15px;
       font-size: 18px;
       font-weight: bold;
-      color: #222;
-      opacity: 0;
-      transform: translateY(10px);
+      color: #111;
       text-align: center;
+      transition: transform 0.2s;
     }
     
-    /* 🌟 新設：スタッフ向け指示用のサブテキストスタイル */
+    /* スタッフ向け指示用のサブテキストスタイル */
     #magsafe-subtext {
       margin-top: 8px;
       font-size: 13px;
       font-weight: bold;
-      color: #ff4757; /* デフォルトは警告用の赤 */
-      background: rgba(255, 71, 87, 0.1);
+      color: #ff4757;
+      background: rgba(255, 71, 87, 0.08);
       padding: 6px 12px;
       border-radius: 6px;
-      opacity: 0;
-      transform: translateY(10px);
       text-align: center;
       max-width: 90%;
     }
 
-    #magsafe-overlay.animate #magsafe-text,
-    #magsafe-overlay.animate #magsafe-subtext { 
-      animation: textFadeIn 0.3s ease-out 0.2s forwards; 
-    }
-    @keyframes textFadeIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
-
-    /* 通信中（Loading） */
+    /* 🔄 劇的改善：Loading中のネイビーサークルをよりアクティブに高速回転 */
     #magsafe-overlay.loading .magsafe-progress circle {
       stroke: var(--primary-color);
       stroke-dasharray: 503;
-      stroke-dashoffset: 350;
-      animation: spin 1s linear infinite;
+      stroke-dashoffset: 380; /* サークルを少し短くして、スタイリッシュな回転線に */
+      animation: spin 0.75s linear infinite; /* 1秒から0.75秒へ回転を高速化 */
       transform-origin: center;
     }
-    #magsafe-overlay.loading #magsafe-text { opacity: 1; transform: translateY(0); }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
     .status-ok { --magsafe-color: #2ed573; }
     .status-exit { --magsafe-color: #ffa500; }
     .status-reentry { --magsafe-color: #1e90ff; }
     .status-error { --magsafe-color: #ff4757; }
-    .status-warning { --magsafe-color: #ffa500; } /* モード違い用のオレンジ警告 */
+    .status-warning { --magsafe-color: #ffa500; }
   </style>
 </head>
 <body>
@@ -396,7 +386,8 @@
           <div id="magsafe-icon-box"></div>
         </div>
         <div id="magsafe-text">読み取り中...</div>
-        <div id="magsafe-subtext"></div> </div>
+        <div id="magsafe-subtext"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -543,9 +534,10 @@
           isScanning = false;
           scanFrame.classList.add("detected");
           
+          // ⚡レスポンス改善：スキャン検知の遊びを150msから「50ms」に限界までカット
           setTimeout(() => {
             processTicket(code.data);
-          }, 150);
+          }, 50);
           return;
         }
       }
@@ -563,13 +555,13 @@
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        // 【改善】無効な形式のQRコードが読まれた場合
+        // ⚡ 【劇的改善】不正な形式のQRコードは、GASへの通信を挟まずにその場で即「0秒」でバツを表示！
         triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの実物を確認してください");
         resultPlaceholder.innerHTML = `
           <div style="border-left: 6px solid #ff4757; padding-left: 15px;">
             <b style="color:#ff4757; font-size:24px;">【エラー】不正なQRコード</b><br><br>
             <b>原因:</b> 当システムの形式ではないQRコードが読み取られました。<br>
-            <b style="color:#ff4757;">[受付指示]:</b> 紙のチケット、または正規の画面を見せてもらい、手動での確認[生徒正体名]が問題なく記入されている場合は、生徒会にお問い合わせください。
+            <b style="color:#ff4757;">[受付指示]:</b> チケットの確認をお願いします<br>[招待生徒名]が問題なく記入されている場合は生徒会にお問い合わせください
           </div>`;
         logInvalidQR(qrData);
         return;
@@ -582,6 +574,7 @@
         return;
       }
 
+      // ⚡ 通信開始：ローディングアニメーションを立ち上げる
       triggerMagsafe("loading", "通信中...", "");
 
       fetch(GAS_URL, {
@@ -603,8 +596,6 @@
           triggerMagsafe("reentry", "🔄 再入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } 
-        
-        // ⚡ 【改善】すでに一度退出手続きをしたチケットを、誤って「初回入場」で読み込んだ時
         else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
           triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
           resultPlaceholder.innerHTML = `
@@ -615,11 +606,9 @@
               <b>ID:</b> ${ticketId}
             </div>`;
         } 
-        
-        // その他のエラー分岐
         else {
           let errMsg = "エラーが発生しました";
-          let subInst = "⚠️ 紙のチケット、または正規の画面を見せてもらい、チケットを確認してください。<br>[招待生徒名]が問題なく記入されている場合は、生徒会にお問い合わせください。";
+          let subInst = "⚠️ チケットの確認をお願いします<br>[招待生徒名]が問題なく記入されている場合は生徒会にお問い合わせください";
           
           if (result === "already" || result === "ALREADY_IN") {
             errMsg = "⚠️ すでに滞在中（重複）";
@@ -652,20 +641,19 @@
       fetch(GAS_URL + "?mode=log_invalid&data=" + encodeURIComponent(rawCode), { method: "POST" });
     }
 
-    // 引数にサブ指示テキスト「subText」を追加
     function triggerMagsafe(statusClass, text, soundType, subText = "") {
       let overlay = document.getElementById("magsafe-overlay");
       let iconBox = document.getElementById("magsafe-icon-box");
       let txtNode = document.getElementById("magsafe-text");
       let subTxtNode = document.getElementById("magsafe-subtext");
 
-      overlay.className = "";
+      // Loadingから次のステータスへの切り替えをカチッと瞬時に行うために初期化を効率化
       iconBox.innerHTML = "";
       subTxtNode.innerText = "";
       subTxtNode.style.display = "none";
 
       if (statusClass === "loading") {
-        overlay.classList.add("active", "loading");
+        overlay.className = "active loading";
         txtNode.innerText = text;
         return;
       }
@@ -684,7 +672,6 @@
             <line class="draw-item" x1="15" y1="12" x2="3" y2="12"></line>
           </svg>`;
       } else if (statusClass === "error" || statusClass === "warning") {
-        // エラー、または再入場案内用の❌ / ⚠️ マーク
         svgContent = `
           <svg class="magsafe-svg-icon" viewBox="0 0 24 24">
             <line class="draw-item" x1="18" y1="6" x2="6" y2="18"></line>
@@ -695,26 +682,24 @@
       iconBox.innerHTML = svgContent;
       txtNode.innerText = text;
       
-      // サブ指示テキストがある場合は表示
       if (subText) {
         subTxtNode.innerText = subText;
         subTxtNode.style.display = "block";
-        // モード警告の時は背景をオレンジ寄りに変更
         if (statusClass === "warning") {
           subTxtNode.style.color = "#d97706";
-          subTxtNode.style.background = "rgba(217, 119, 6, 0.1)";
+          subTxtNode.style.background = "rgba(217, 119, 6, 0.08)";
         } else {
           subTxtNode.style.color = "#ff4757";
-          subTxtNode.style.background = "rgba(255, 71, 87, 0.1)";
+          subTxtNode.style.background = "rgba(255, 71, 87, 0.08)";
         }
       }
 
+      // クラス付与と同時に爆速アニメーションを開始
       overlay.className = "active animate status-" + statusClass;
 
       if (soundType) playTone(soundType);
 
-      // 警告表示の時は確認時間を稼ぐため、通常1.8秒のところを「2.5秒」表示に自動延長
-      let displayTime = (statusClass === "warning" || statusClass === "error") ? 2500 : 1800;
+      let displayTime = (statusClass === "warning" || statusClass === "error") ? 2500 : 1600; // 成功時は1.6秒に若干短縮
 
       setTimeout(() => {
         overlay.className = "";
