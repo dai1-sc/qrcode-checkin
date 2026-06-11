@@ -23,7 +23,7 @@
       min-height: 100vh;
     }
 
-    /* 統一された美しいヘッダー */
+    /* ヘッダー */
     header {
       background-color: var(--primary-color);
       color: white;
@@ -57,7 +57,7 @@
       letter-spacing: 1px;
     }
 
-    /* 中央寄せのモード切り替えタブ */
+    /* モード切り替えタブ */
     .tab-wrapper {
       display: flex;
       flex-direction: column;
@@ -100,7 +100,7 @@
       margin-top: 8px;
     }
 
-    /* メインの2連カードレイアウト */
+    /* メインレイアウト */
     main {
       flex: 1;
       display: flex;
@@ -131,7 +131,13 @@
       height: 100%;
       object-fit: cover;
     }
-
+    
+    br {
+    	display: block;
+    	content: "";
+    	margin: 10px 0;
+    }
+    
     /* スキャン枠 */
     .scan-frame {
       position: absolute;
@@ -176,7 +182,7 @@
       font-size: 16px;
     }
 
-    /* 右側の結果表示用ログスペース */
+    /* 結果表示用スペース */
     .result-placeholder {
       font-size: 18px;
       color: #999;
@@ -187,7 +193,7 @@
       box-sizing: border-box;
     }
 
-    /* 🌟 新設：結果カード内のエラー文言用レイアウト */
+    /* 🔴 エラー表示用コンテナ（無効QR・重複など赤系） */
     .error-container {
       border-left: 6px solid #ff4757;
       padding-left: 20px;
@@ -200,7 +206,7 @@
       color: #ff4757;
       font-size: 26px;
       font-weight: bold;
-      margin-bottom: 25px; /* 開業して少し間を開けるための大きなマージン */
+      margin-bottom: 25px; /* 改行後にしっかり空けるための間 */
     }
     .error-instruction {
       color: #333;
@@ -209,7 +215,7 @@
       font-weight: normal;
     }
 
-    /* 🌟 新設：再入場促し用のカードレイアウト */
+    /* 🟠 警告表示用コンテナ（モード間違いなどオレンジ系） */
     .warning-container {
       border-left: 6px solid #ffa500;
       padding-left: 20px;
@@ -222,10 +228,16 @@
       color: #ffa500;
       font-size: 26px;
       font-weight: bold;
-      margin-bottom: 25px;
+      margin-bottom: 25px; /* 改行後にしっかり空けるための間 */
+    }
+    .warning-instruction {
+      color: #333;
+      font-size: 16px;
+      line-height: 1.6;
+      font-weight: normal;
     }
 
-    /* コントロールボタンセクション */
+    /* コントロールパネル */
     .control-panel {
       text-align: center;
       padding-bottom: 40px;
@@ -349,9 +361,9 @@
     }
 
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
-    @keyframes drawCheck { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
+    @keyframes drawCheck { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 0; } }
 
-    /* メッセージのテキスト領域 */
+    /* メッセージテキスト */
     #magsafe-text {
       margin-top: 15px;
       font-size: 18px;
@@ -361,7 +373,7 @@
       transition: transform 0.2s;
     }
     
-    /* スタッフ向け指示用のサブテキストスタイル */
+    /* スタッフ向け指示サブテキスト */
     #magsafe-subtext {
       margin-top: 8px;
       font-size: 13px;
@@ -592,13 +604,14 @@
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        // 🛠️ 改善：余計な項目を消去し、美しい改行・余白指示に変更
+        // ⚡ 【完全限定】無効な形式のQRコードの時だけ「招待生徒名〜」を出す！
         triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
         resultPlaceholder.innerHTML = `
           <div class="error-container">
             <div class="error-title">⚠️ チケットの確認をお願いします。</div>
             <div class="error-instruction">
-             [招待生徒名]が問題なく記入されている場合は、生徒会へお問い合わせください。
+            [招待生徒名]が不明の場合、本人確認をお願いします。<br>
+             名前が問題なく記入されている場合は、生徒会にお問い合わせください。
             </div>
           </div>`;
         logInvalidQR(qrData);
@@ -640,7 +653,7 @@
           resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } 
         
-        // ⚡ 【差別化】退出済みチケットを「初回入場」で読み込んだ時（再入場を促す特別指示）
+        // ⚡ 【完全限定】退出済みチケットを誤って「初回入場」で読み込んだ時
         else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
           triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
           resultPlaceholder.innerHTML = `
@@ -653,15 +666,28 @@
             </div>`;
         } 
         
-        // その他のシステムエラー（重複入場など）
-        else {
-          triggerMagsafe("error", "⚠️ 重複または未入場エラー", "error", "⚠️ チケットの確認をお願いします");
+        // ⚡ 【完全限定】すでに滞在中（重複読み込み）のエラー時
+        else if (result === "already" || result === "ALREADY_IN") {
+          triggerMagsafe("error", "⚠️ すでに滞在中（重複）", "error", "⚠️ 重複エラー：入場済みチケットです");
           resultPlaceholder.innerHTML = `
             <div class="error-container">
-              <div class="error-title">⚠️ チケットの確認をお願いします。</div>
+              <div class="error-title">⚠️ すでに滞在中（重複エラー）</div>
               <div class="error-instruction">
-                チケットを確認することができませんでした。<br>
-                [招待生徒名]が問題なく記入されている場合は、生徒会へお問い合わせください
+                このチケットはすでに初回入場、または再入場の処理が完了しています。<br>
+                二重に同じQRコードを使用していないか確認してください。
+              </div>
+            </div>`;
+        }
+        
+        // ⚡ 【完全限定】それ以外のその他の組み合わせエラー（未入場での退場処理など）
+        else {
+          triggerMagsafe("error", "❌ 入場エラー", "error", "⚠️ モード設定を確認してください");
+          resultPlaceholder.innerHTML = `
+            <div class="error-container">
+              <div class="error-title">❌ 入場エラー（その他）</div>
+              <div class="error-instruction">
+                受付側のモード（初回入場 / 再入場 / 一時退場）と、チケットの状態が一致していません。<br>
+                受付のタブ、またはチケットに間違いがないか確認してください。
               </div>
             </div>`;
         }
@@ -736,7 +762,7 @@
 
       if (soundType) playTone(soundType);
 
-      let displayTime = (statusClass === "warning" || statusClass === "error") ? 3000 : 1600; // じっくり読めるようエラー時は3秒に調整
+      let displayTime = (statusClass === "warning" || statusClass === "error") ? 3000 : 1600;
 
       setTimeout(() => {
         overlay.className = "";
