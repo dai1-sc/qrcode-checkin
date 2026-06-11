@@ -131,13 +131,7 @@
       height: 100%;
       object-fit: cover;
     }
-    
-    br {
-    	display: block;
-    	content: "";
-    	margin: 10px 0;
-    }
-    
+
     /* スキャン枠 */
     .scan-frame {
       position: absolute;
@@ -361,7 +355,7 @@
     }
 
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
-    @keyframes drawCheck { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 0; } }
+    @keyframes drawCheck { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
 
     /* メッセージテキスト */
     #magsafe-text {
@@ -599,25 +593,25 @@
       let ticketId = "";
       let decodedData = decodeURIComponent(qrData);
 
+      // 🛠️ バグ修正：無効なQRの時に正しく条件を判定し、「招待生徒名〜」の文言を表示
       if (decodedData.includes("id=")) {
         ticketId = decodedData.split("id=")[1].split("&")[0].trim();
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        // ⚡ 【完全限定】無効な形式のQRコードの時だけ「招待生徒名〜」を出す！
         triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
         resultPlaceholder.innerHTML = `
           <div class="error-container">
             <div class="error-title">⚠️ チケットの確認をお願いします。</div>
             <div class="error-instruction">
-            [招待生徒名]が不明の場合、本人確認をお願いします。<br>
-             名前が問題なく記入されている場合は、生徒会にお問い合わせください。
+              [招待生徒名]が問題なく記入されている場合は、そのまま入場していただいて構いません。
             </div>
           </div>`;
         logInvalidQR(qrData);
         return;
       }
 
+      // 🛠️ バグ修正：データ破損（抽出失敗）時も同様に設定
       if (!ticketId) {
         triggerMagsafe("error", "❌ ID抽出エラー", "invalid", "⚠️ チケットの確認をお願いします");
         resultPlaceholder.innerHTML = `
@@ -653,7 +647,7 @@
           resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } 
         
-        // ⚡ 【完全限定】退出済みチケットを誤って「初回入場」で読み込んだ時
+        // 退出済みチケットを誤って「初回入場」で読み込んだ時
         else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
           triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
           resultPlaceholder.innerHTML = `
@@ -666,7 +660,7 @@
             </div>`;
         } 
         
-        // ⚡ 【完全限定】すでに滞在中（重複読み込み）のエラー時
+        // すでに滞在中（重複読み込み）のエラー時
         else if (result === "already" || result === "ALREADY_IN") {
           triggerMagsafe("error", "⚠️ すでに滞在中（重複）", "error", "⚠️ 重複エラー：入場済みチケットです");
           resultPlaceholder.innerHTML = `
@@ -679,7 +673,7 @@
             </div>`;
         }
         
-        // ⚡ 【完全限定】それ以外のその他の組み合わせエラー（未入場での退場処理など）
+        // それ以外のその他の組み合わせエラー（未入場での退場処理など）
         else {
           triggerMagsafe("error", "❌ 入場エラー", "error", "⚠️ モード設定を確認してください");
           resultPlaceholder.innerHTML = `
