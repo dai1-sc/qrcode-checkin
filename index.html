@@ -311,7 +311,7 @@
     }
 
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
-    @keyframes drawCheck { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 0; } }
+    @keyframes drawCheck { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
 
     /* メッセージのテキスト領域 */
     #magsafe-text {
@@ -569,7 +569,7 @@
           <div style="border-left: 6px solid #ff4757; padding-left: 15px;">
             <b style="color:#ff4757; font-size:24px;">【エラー】不正なQRコード</b><br><br>
             <b>原因:</b> 当システムの形式ではないQRコードが読み取られました。<br>
-            <b style="color:#ff4757;">[受付指示]:</b> 紙のチケット、または正規の画面を見せてもらい、手動での確認を行ってください。
+            <b style="color:#ff4757;">[受付指示]:</b> 紙のチケット、または正規の画面を見せてもらい、手動での確認[生徒正体名]が問題なく記入されている場合は、生徒会にお問い合わせください。
           </div>`;
         logInvalidQR(qrData);
         return;
