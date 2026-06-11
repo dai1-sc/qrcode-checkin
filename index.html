@@ -352,7 +352,7 @@
     }
     /* チェックマーク等の描画時間を 0.3秒 ➔ 0.6秒 に、開始を少しディレイ */
     #magsafe-overlay.animate .magsafe-svg-icon .draw-item {
-      animation: drawCheck 0.6s 0.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      animation: drawCheck 1s 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
     }
 
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
@@ -670,7 +670,8 @@
         <div class="error-container">
           <div class="error-title">⚠️ チケットの確認をお願いします。</div>
           <div class="error-instruction">
-            [招待生徒名]が問題なく記入されている場合は、そのまま入場していただいて構いません。
+          [招待生徒名]が不明の場合は、本人確認をお願いします。<br>
+            名前が問題なく記入されている場合は、生徒会まで連絡をお願いします。
           </div>
         </div>`;
       logInvalidQR(qrData);
