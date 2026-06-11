@@ -7,8 +7,8 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root {
-      --primary-color: #002b75; /* 元UIの綺麗なネイビー */
-      --bg-color: #e9edf4;      /* 元UIの淡いグレー背景 */
+      --primary-color: #002b75; 
+      --bg-color: #e9edf4;      
       --theme-color: #2ed573;
     }
 
@@ -200,7 +200,7 @@
       color: #ff4757;
       font-size: 26px;
       font-weight: bold;
-      margin-bottom: 25px; /* 改行後にしっかり空けるための間 */
+      margin-bottom: 25px; 
     }
     .error-instruction {
       color: #333;
@@ -222,7 +222,7 @@
       color: #ffa500;
       font-size: 26px;
       font-weight: bold;
-      margin-bottom: 25px; /* 改行後にしっかり空けるための間 */
+      margin-bottom: 25px; 
     }
     .warning-instruction {
       color: #333;
@@ -276,7 +276,7 @@
     }
 
     /* ========================================================
-        🍏 MagSafe風一筆書きSVGアニメーション（カード内埋め込み）
+        🍏 MagSafe風一筆書きSVGアニメーション
     ======================================================== */
     #magsafe-overlay {
       position: absolute;
@@ -334,7 +334,6 @@
       animation: fillCircle 0.4s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
     }
 
-    /* 一筆書き用SVGアイコン */
     .magsafe-svg-icon {
       width: 70px;
       height: 70px;
@@ -357,7 +356,6 @@
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
     @keyframes drawCheck { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
 
-    /* メッセージテキスト */
     #magsafe-text {
       margin-top: 15px;
       font-size: 18px;
@@ -367,7 +365,6 @@
       transition: transform 0.2s;
     }
     
-    /* スタッフ向け指示サブテキスト */
     #magsafe-subtext {
       margin-top: 8px;
       font-size: 13px;
@@ -380,7 +377,6 @@
       max-width: 90%;
     }
 
-    /* Loading中のアニメーション */
     #magsafe-overlay.loading .magsafe-progress circle {
       stroke: var(--primary-color);
       stroke-dasharray: 503;
@@ -593,34 +589,18 @@
       let ticketId = "";
       let decodedData = decodeURIComponent(qrData);
 
-      // 全く関係のない形式の文字列だった場合
       if (decodedData.includes("id=")) {
         ticketId = decodedData.split("id=")[1].split("&")[0].trim();
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
-        resultPlaceholder.innerHTML = `
-          <div class="error-container">
-            <div class="error-title">⚠️ チケットの確認をお願いします。</div>
-            <div class="error-instruction">
-              [招待生徒名]が問題なく記入されている場合は、そのまま入場していただいて構いません。
-            </div>
-          </div>`;
-        logInvalidQR(qrData);
+        // 形式が全く違う外部コード
+        showInvalidTicketError(qrData);
         return;
       }
 
       if (!ticketId) {
-        triggerMagsafe("error", "❌ ID抽出エラー", "invalid", "⚠️ チケットの確認をお願いします");
-        resultPlaceholder.innerHTML = `
-          <div class="error-container">
-            <div class="error-title">⚠️ チケットの確認をお願いします。</div>
-            <div class="error-instruction">
-              QRコードのデータが破損しています。[招待生徒名]が問題なく記入されているか確認してください。
-            </div>
-          </div>`;
-        logInvalidQR(qrData);
+        showInvalidTicketError(qrData);
         return;
       }
 
@@ -635,6 +615,7 @@
       })
       .then(res => res.text())
       .then(result => {
+        // 🟩 成功パターン
         if (result === "OK") {
           triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
@@ -646,7 +627,7 @@
           resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } 
         
-        // 1️⃣ 一時退場済みなのに「初回入場」で読み込んだ時
+        // 🟧 モード違い（一時退場済みなのに「初回入場」で読んだ）
         else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
           triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
           resultPlaceholder.innerHTML = `
@@ -659,12 +640,12 @@
             </div>`;
         } 
         
-        // 2️⃣ すでに滞在中（重複読み込み）の時
+        // 🟥 すでに滞在中（重複エラー）
         else if (result === "already" || result === "ALREADY_IN") {
           triggerMagsafe("error", "⚠️ すでに滞在中（重複）", "error", "⚠️ 重複エラー：入場済みチケットです");
           resultPlaceholder.innerHTML = `
             <div class="error-container">
-              <div class="error-title">⚠️ すでに滞年中（重複エラー）</div>
+              <div class="error-title">⚠️ すでに滞在中（重複エラー）</div>
               <div class="error-instruction">
                 このチケットはすでに初回入場、または再入場の処理が完了しています。<br>
                 二重に同じQRコードを使用していないか確認してください。
@@ -672,31 +653,11 @@
             </div>`;
         }
         
-        // 🌟 3️⃣ 【ここを修正！】形式はTKTだけど、台帳に存在しない偽の無効コードだった時
-        // （GASからERROR_NO_MATCHや、該当なし系の文字列が返ってきた時）
-        else if (result.includes("ERROR_NO_MATCH") || result.includes("NOT_FOUND") || result.includes("エラー")) {
-          triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
-          resultPlaceholder.innerHTML = `
-            <div class="error-container">
-              <div class="error-title">⚠️ チケットの確認をお願いします。</div>
-              <div class="error-instruction">
-                台帳に登録がない無効なQRコードです。<br>
-                [招待生徒名]が問題なく記入されている場合は、そのまま入場していただいて構いません。
-              </div>
-            </div>`;
-        }
-        
-        // 4️⃣ それ以外のその他想定外エラー（未入場での退場処理など）
+        // 🌟【引き算方式に大修正！】
+        // 上記の正常・重複・モード違いに当てはまらないGASからの返答は、
+        // 「TKTの文字をいじった台帳に存在しない無効コード」とみなし、すべて『チケットの確認』画面にする！
         else {
-          triggerMagsafe("error", "❌ 入場エラー", "error", "⚠️ モード設定を確認してください");
-          resultPlaceholder.innerHTML = `
-            <div class="error-container">
-              <div class="error-title">❌ 入場エラー（その他）</div>
-              <div class="error-instruction">
-                受付側のモード（初回入場 / 再入場 / 一時退場）と、チケットの状態が一致していません。<br>
-                受付のタブ、またはチケットに間違いがないか確認してください。
-              </div>
-            </div>`;
+          showInvalidTicketError(qrData);
         }
       })
       .catch(err => {
@@ -707,6 +668,19 @@
             <div class="error-instruction">インターネット接続を確認してください。</div>
           </div>`;
       });
+    }
+
+    // 🌟 無効なチケット用の共通処理関数（これで文言表示を一括固定！）
+    function showInvalidTicketError(qrData) {
+      triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
+      resultPlaceholder.innerHTML = `
+        <div class="error-container">
+          <div class="error-title">⚠️ チケットの確認をお願いします。</div>
+          <div class="error-instruction">
+            [招待生徒名]が問題なく記入されている場合は、そのまま入場していただいて構いません。
+          </div>
+        </div>`;
+      logInvalidQR(qrData);
     }
 
     function logInvalidQR(rawCode) {
