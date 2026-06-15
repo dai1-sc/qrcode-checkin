@@ -276,7 +276,7 @@
     }
 
     /* ========================================================
-        🍏 MagSafe風一筆書きSVGアニメーション（速度調整版）
+        🍏 MagSafe風一筆書きSVGアニメーション
     ======================================================== */
     #magsafe-overlay {
       position: absolute;
@@ -330,7 +330,6 @@
       stroke-dasharray: 503;
       stroke-dashoffset: 503;
     }
-    /* 外円を描く時間を 0.4秒 ➔ 0.65秒 にしてなめらかに */
     #magsafe-overlay.animate .magsafe-progress circle {
       animation: fillCircle 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards;
     }
@@ -350,9 +349,8 @@
       stroke-dasharray: 100;
       stroke-dashoffset: 100;
     }
-    /* チェックマーク等の描画時間を 0.3秒 ➔ 0.6秒 に、開始を少しディレイ */
     #magsafe-overlay.animate .magsafe-svg-icon .draw-item {
-      animation: drawCheck 1s 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      animation: drawCheck 0.6s 0.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
     }
 
     @keyframes fillCircle { 0% { stroke-dashoffset: 503; } 100% { stroke-dashoffset: 0; } }
@@ -396,6 +394,7 @@
 </head>
 <body>
 
+  <!-- ヘッダー -->
   <header>
     <div class="header-sub">一高祭 ・ 文化部門</div>
     <div class="header-title-container">
@@ -404,6 +403,7 @@
     </div>
   </header>
   
+  <!-- モードタブ -->
   <div class="tab-wrapper">
     <div class="tab-container">
       <button class="tab-btn active" data-mode="entry" onclick="setMode('entry')">🟢 初回入場</button>
@@ -413,6 +413,7 @@
     <div id="current-mode-badge">現在のモード: 初回入場</div>
   </div>
 
+  <!-- メインコンテンツ -->
   <main>
     <div class="card">
       <div class="scan-frame" id="scan-frame"></div>
@@ -460,6 +461,9 @@
     let isPaused = true; 
     let localStream = null;
     let audioCtx = null;
+    
+    // 🌟 直前に処理した無効なQRのメモリ保持用
+    let lastInvalidId = ""; 
 
     function setMode(mode) {
       currentMode = mode;
@@ -595,12 +599,29 @@
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
+        // 🌟【ダブり防止】直前の無効IDや、その生URLと同じだったら即座に通信せず無視
+        if (qrData === lastInvalidId || decodedData === lastInvalidId) {
+          resetScanImmediately();
+          return;
+        }
+        lastInvalidId = qrData;
         showInvalidTicketError(qrData);
         return;
       }
 
       if (!ticketId) {
+        if (qrData === lastInvalidId) {
+          resetScanImmediately();
+          return;
+        }
+        lastInvalidId = qrData;
         showInvalidTicketError(qrData);
+        return;
+      }
+
+      // 🌟【ダブり防止】すでに同じ無効チケットを直前に処理していたら、GASに飛ばさずスルー
+      if (ticketId === lastInvalidId || qrData === lastInvalidId) {
+        resetScanImmediately();
         return;
       }
 
@@ -615,6 +636,11 @@
       })
       .then(res => res.text())
       .then(result => {
+        // 成功したら直前の無効化履歴をクリア
+        if (result === "OK" || result === "EXIT_OK" || result === "RE_ENTRY_OK") {
+          lastInvalidId = ""; 
+        }
+
         if (result === "OK") {
           triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
@@ -627,6 +653,7 @@
         } 
         
         else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
+          lastInvalidId = "";
           triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
           resultPlaceholder.innerHTML = `
             <div class="warning-container">
@@ -639,6 +666,7 @@
         } 
         
         else if (result === "already" || result === "ALREADY_IN") {
+          lastInvalidId = "";
           triggerMagsafe("error", "⚠️ すでに滞在中（重複）", "error", "⚠️ 重複エラー：入場済みチケットです");
           resultPlaceholder.innerHTML = `
             <div class="error-container">
@@ -651,6 +679,8 @@
         }
         
         else {
+          // 台帳に存在しない偽コードの時。IDをメモリに保存して次回重複を弾く
+          lastInvalidId = ticketId;
           showInvalidTicketError(qrData);
         }
       })
@@ -664,14 +694,23 @@
       });
     }
 
+    // 🌟【超高速ダブり用】画面を一切動かさず、カメラだけを一瞬で再開させる関数
+    function resetScanImmediately() {
+      scanFrame.classList.remove("detected");
+      if (!isPaused) {
+        isScanning = true;
+        requestAnimationFrame(scanQRCode);
+      }
+    }
+
     function showInvalidTicketError(qrData) {
       triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
       resultPlaceholder.innerHTML = `
         <div class="error-container">
           <div class="error-title">⚠️ チケットの確認をお願いします。</div>
           <div class="error-instruction">
-          [招待生徒名]が不明の場合は、本人確認をお願いします。<br>
-            名前が問題なく記入されている場合は、生徒会まで連絡をお願いします。
+          生徒会が発券したチケットではない可能性があります。<br>
+            [招待生徒名]が問題なく記入されている場合は、生徒会に連絡してください。
           </div>
         </div>`;
       logInvalidQR(qrData);
@@ -737,8 +776,6 @@
 
       if (soundType) playTone(soundType);
 
-      // 🌟【表示時間のキープを調整】
-      // 成功時を 1.6秒 ➔ 2.3秒、エラー・警告時を 3.0秒 ➔ 3.5秒 に延長
       let displayTime = (statusClass === "warning" || statusClass === "error") ? 3500 : 2300;
 
       setTimeout(() => {
