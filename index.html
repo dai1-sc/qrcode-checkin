@@ -514,7 +514,14 @@
     }
 
     function initCamera() {
-      return navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      // 外カメラ(environment)を最優先しつつ、ダメなら端末にあるカメラをどれでも使う柔軟な設定
+      const constraints = {
+        video: {
+          facingMode: { ideal: "environment" }
+        }
+      };
+
+      return navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           localStream = stream;
           video.srcObject = stream;
@@ -522,7 +529,8 @@
           requestAnimationFrame(scanQRCode);
         })
         .catch(err => {
-          alert("カメラの起動に失敗しました。");
+          console.error("Camera Init Error: ", err);
+          alert("カメラの起動に失敗しました。ブラウザのカメラ権限が「許可」になっているか確認してください。");
           document.getElementById("start-btn").style.display = "inline-block";
           pauseBtn.style.display = "none";
         });
