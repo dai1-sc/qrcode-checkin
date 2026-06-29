@@ -645,12 +645,50 @@
       })
       .then(res => res.text())
       .then(result => {
-        // 成功したら直前の無効化履歴をクリア
-        if (result === "OK" || result === "EXIT_OK" || result === "RE_ENTRY_OK") {
-          lastInvalidId = ""; 
+        // レスポンスを分割（結果|時間帯）
+        const parts = result.split("|");
+        const status = parts[0];
+        const ticketTime = parts[1] || "";
+
+        // 時間帯チェック
+        const now = new Date();
+        const hour = now.getHours();
+        const isAM = hour < 13; // 13時未満を午前とする
+
+        if (status === "OK" || status === "RE_ENTRY_OK") {
+          if (ticketTime === "am" && !isAM) {
+            triggerMagsafe("error", "❌ 時間帯が違います", "error", "⚠️ このチケットは午前用です");
+            resultPlaceholder.innerHTML = `
+              <div class="error-container">
+                <div class="error-title">⚠️ 時間帯エラー</div>
+                <div class="error-instruction">
+                  このチケットは<b>午前の部</b>用です。<br>
+                  午後の部のチケットをご確認ください。
+                </div>
+              </div>`;
+            // スプレッドシートの更新を取り消す必要があるため注意
+            return;
+          }
+          if (ticketTime === "pm" && isAM) {
+            triggerMagsafe("error", "❌ 時間帯が違います", "error", "⚠️ このチケットは午後用です");
+            resultPlaceholder.innerHTML = `
+              <div class="error-container">
+                <div class="error-title">⚠️ 時間帯エラー</div>
+                <div class="error-instruction">
+                  このチケットは<b>午後の部</b>用です。<br>
+                  午前の部のチケットをご確認ください。
+                </div>
+              </div>`;
+            return;
+          }
         }
 
-        if (result === "OK") {
+        // 成功したら直前の無効化履歴をクリア
+        if (status === "OK" || status === "EXIT_OK" || status === "RE_ENTRY_OK") {
+          lastInvalidId = "";
+        }
+
+        if (status === "OK") {
           triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } else if (result === "EXIT_OK") {
@@ -660,7 +698,33 @@
           triggerMagsafe("reentry", "🔄 再入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } 
-        
+
+else if (result === "WRONG_TIME_AM") {
+          lastInvalidId = "";
+          triggerMagsafe("error", "❌ 時間帯が違います", "error", "⚠️ このチケットは午前用です");
+          resultPlaceholder.innerHTML = `
+            <div class="error-container">
+              <div class="error-title">⚠️ 時間帯エラー</div>
+              <div class="error-instruction">
+                このチケットは<b>午前の部</b>用です。<br>
+                午後の部のチケットをご確認ください。
+              </div>
+            </div>`;
+        }
+
+        else if (result === "WRONG_TIME_PM") {
+          lastInvalidId = "";
+          triggerMagsafe("error", "❌ 時間帯が違います", "error", "⚠️ このチケットは午後用です");
+          resultPlaceholder.innerHTML = `
+            <div class="error-container">
+              <div class="error-title">⚠️ 時間帯エラー</div>
+              <div class="error-instruction">
+                このチケットは<b>午後の部</b>用です。<br>
+                午前の部のチケットをご確認ください。
+              </div>
+            </div>`;
+        }
+          
         else if ((result === "ALREADY_OUT" || result === "ERROR_NOT_IN_YET") && currentMode === "entry") {
           lastInvalidId = "";
           triggerMagsafe("warning", "⚠️ 再入場モードにしてください", "error", "🔄 上のタブを「再入場」に切り替えて！");
