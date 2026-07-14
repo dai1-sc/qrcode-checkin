@@ -241,6 +241,8 @@
       display: flex;
       justify-content: center;
       gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
     }
     .action-btn {
       padding: 14px 32px;
@@ -263,6 +265,25 @@
     }
     .btn-orange {
       background-color: #002b75;
+    }
+
+    /* カメラ選択UI */
+    #camera-select {
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #ccd6e0;
+      background: white;
+      font-size: 14px;
+      min-width: 180px;
+    }
+    #switch-btn {
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: none;
+      background: #444;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
     }
 
     /* フッター */
@@ -442,6 +463,10 @@
     <div class="btn-container">
       <button id="start-btn" class="action-btn" onclick="startCamera()">▶ 開始</button>
       <button id="pause-btn" class="action-btn btn-orange" onclick="togglePause()" style="display:none;">⏸ 停止</button>
+
+      <!-- カメラ選択UI -->
+      <select id="camera-select" aria-label="カメラ選択"></select>
+      <button id="switch-btn" onclick="switchCamera()">切替</button>
     </div>
   </div>
 
@@ -463,6 +488,11 @@
     let localStream = null;
     let audioCtx = null;
     
+    // カメラデバイス管理
+    let currentDeviceId = null;
+    let videoInputs = [];
+    const cameraSelect = document.getElementById('camera-select');
+
     // 🌟 直前に処理した無効なQRのメモリ保持用
     let lastInvalidId = ""; 
 
@@ -513,23 +543,33 @@
       }
     }
 
-    function initCamera() {
-      // 外カメラ(environment)を最優先しつつ、ダメなら端末にあるカメラをどれでも使う柔軟な設定
-      const constraints = {
-        video: {
-          facingMode: { ideal: "environment" }
-        }
-      };
+    // initCamera を deviceId を受け取るように変更
+    function initCamera(deviceId = null) {
+      // 外カメラ(environment)を最優先しつつ、deviceId があればそれを優先
+      let constraints;
+      if (deviceId) {
+        constraints = { video: { deviceId: { exact: deviceId } } };
+      } else {
+        constraints = { video: { facingMode: { ideal: "environment" } } };
+      }
 
       return navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           localStream = stream;
           video.srcObject = stream;
           isScanning = true;
+          currentDeviceId = deviceId || getDeviceIdFromStream(stream);
+          // カメララベル取得のためにデバイスリスト更新
+          populateCameraList();
           requestAnimationFrame(scanQRCode);
         })
         .catch(err => {
           console.error("Camera Init Error: ", err);
+          // deviceId 指定で失敗した場合は facingMode にフォールバックして再試行
+          if (deviceId) {
+            console.warn("指定したデバイスで起動できませんでした。facingMode にフォールバックします。");
+            return initCamera(null);
+          }
           alert("カメラの起動に失敗しました。ブラウザのカメラ権限が「許可」になっているか確認してください。");
           document.getElementById("start-btn").style.display = "inline-block";
           pauseBtn.style.display = "none";
@@ -542,7 +582,11 @@
       pauseMessage.style.display = "none";
       setMode("entry");
       isPaused = false;
-      initCamera();
+      // 最初は currentDeviceId があればそれを、なければ null（facingMode）で起動
+      initCamera(currentDeviceId).then(() => {
+        // enumerateDevices を一度実行
+        populateCameraList();
+      });
     }
 
     function togglePause() {
@@ -565,7 +609,7 @@
         pauseMessage.style.display = "none";
         scanFrame.style.display = "block";
         pauseBtn.innerHTML = "⏸ 停止";
-        initCamera();
+        initCamera(currentDeviceId);
       }
     }
 
@@ -861,6 +905,85 @@ else if (result === "WRONG_TIME_AM") {
         }
       }, displayTime);
     }
+
+    // カメラ関連ユーティリティ ------------------------------------
+    function populateCameraList() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.warn('enumerateDevices not supported.');
+        return;
+      }
+      navigator.mediaDevices.enumerateDevices()
+        .then(devices => {
+          videoInputs = devices.filter(d => d.kind === 'videoinput');
+          // 既存選択を保持
+          const prev = cameraSelect.value;
+          cameraSelect.innerHTML = '';
+          videoInputs.forEach((d, i) => {
+            const opt = document.createElement('option');
+            opt.value = d.deviceId;
+            opt.text = d.label || `カメラ ${i + 1}`;
+            cameraSelect.appendChild(opt);
+          });
+          // currentDeviceId があれば選択、なければ以前の選択を復元
+          if (currentDeviceId) {
+            cameraSelect.value = currentDeviceId;
+          } else if (prev) {
+            cameraSelect.value = prev;
+          }
+        })
+        .catch(err => {
+          console.error('populateCameraList error:', err);
+        });
+    }
+
+    // ストリームから deviceId を取得（可能なら）
+    function getDeviceIdFromStream(stream) {
+      try {
+        const track = stream.getVideoTracks()[0];
+        if (!track) return null;
+        const settings = track.getSettings ? track.getSettings() : {};
+        return settings.deviceId || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 切替ボタン処理
+    function switchCamera() {
+      const deviceId = cameraSelect.value;
+      if (!deviceId) {
+        return alert('切替可能なカメラが見つかりません。まず「開始」を押してカメラアクセスを許可してください。');
+      }
+      if (deviceId === currentDeviceId) {
+        // 同じなら再起動（軽い再取得）
+        if (localStream) {
+          localStream.getTracks().forEach(t => t.stop());
+          localStream = null;
+        }
+        initCamera(deviceId);
+        return;
+      }
+      // 現在のストリーム停止
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      currentDeviceId = deviceId;
+      initCamera(deviceId);
+    }
+
+    // デバイスが増減したら更新
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', () => {
+        // デバイス変更があれば一覧更新
+        populateCameraList();
+      });
+    }
+
+    // 初期化：ページ読み込み時に enumerateDevices を試す（ただしラベルは権限前は空の可能性あり）
+    window.addEventListener('load', () => {
+      populateCameraList();
+    });
   </script>
 </body>
 </html>
