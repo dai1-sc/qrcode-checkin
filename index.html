@@ -3,9 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>一高祭 QRチェックインシステム</title>
+  <title>一高祭 チェックインシステム</title>
   <link rel="icon" href="logo_sc.png" type="image/png">
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  
+  <!-- 🌟 jsQR から ZXing (Zebra Crossing) ライブラリへ変更 -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+
   <style>
     :root {
       --primary-color: #002b75; 
@@ -188,7 +191,7 @@
       box-sizing: border-box;
     }
 
-    /* 🔴 エラー表示用コンテナ（無効QR・重複など赤系） */
+    /* エラー表示コンテナ */
     .error-container {
       border-left: 6px solid #ff4757;
       padding-left: 20px;
@@ -210,7 +213,7 @@
       font-weight: normal;
     }
 
-    /* 🟠 警告表示用コンテナ（モード間違いなどオレンジ系） */
+    /* 警告表示コンテナ */
     .warning-container {
       border-left: 6px solid #ffa500;
       padding-left: 20px;
@@ -267,7 +270,6 @@
       background-color: #002b75;
     }
 
-    /* カメラ選択UI */
     #camera-select {
       padding: 10px 12px;
       border-radius: 6px;
@@ -286,7 +288,6 @@
       font-weight: bold;
     }
 
-    /* フッター */
     footer {
       background-color: #dbe2ef;
       color: #666;
@@ -297,9 +298,7 @@
       border-top: 1px solid #ccd6e0;
     }
 
-    /* ========================================================
-        🍏 MagSafe風一筆書きSVGアニメーション
-    ======================================================== */
+    /* MagSafe風演出 */
     #magsafe-overlay {
       position: absolute;
       top: 0;
@@ -416,16 +415,14 @@
 </head>
 <body>
 
-  <!-- ヘッダー -->
   <header>
     <div class="header-sub">一高祭 ・ 文化部門</div>
     <div class="header-title-container">
       <img class="header-logo" src="logo.png" alt="Logo">
-      <h1 class="header-title">QRチェックインシステム</h1>
+      <h1 class="header-title">チェックインシステム</h1>
     </div>
   </header>
   
-  <!-- モードタブ -->
   <div class="tab-wrapper">
     <div class="tab-container">
       <button class="tab-btn active" data-mode="entry" onclick="setMode('entry')">🟢 初回入場</button>
@@ -435,7 +432,6 @@
     <div id="current-mode-badge">現在のモード: 初回入場</div>
   </div>
 
-  <!-- メインコンテンツ -->
   <main>
     <div class="card">
       <div class="scan-frame" id="scan-frame"></div>
@@ -464,41 +460,38 @@
       <button id="start-btn" class="action-btn" onclick="startCamera()">▶ 開始</button>
       <button id="pause-btn" class="action-btn btn-orange" onclick="togglePause()" style="display:none;">⏸ 停止</button>
 
-      <!-- カメラ選択UI -->
       <select id="camera-select" aria-label="カメラ選択"></select>
       <button id="switch-btn" onclick="switchCamera()">切替</button>
     </div>
   </div>
 
   <footer>
-    &lt;/&gt; Powered by Google Apps Script &amp; HTML5-QRcode API
+    &lt;/&gt; Powered by Google Apps Script &amp; ZXing (Zebra Crossing)
   </footer>
 
   <script>
     const GAS_URL = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
 
     let currentMode = "entry"; 
-    let video = document.getElementById("video");
     let scanFrame = document.getElementById("scan-frame");
     let pauseMessage = document.getElementById("pause-message");
     let pauseBtn = document.getElementById("pause-btn");
     let resultPlaceholder = document.getElementById("result-placeholder");
-    let isScanning = false;
+    let isProcessing = false;
     let isPaused = true; 
-    let localStream = null;
     let audioCtx = null;
     
-    // カメラデバイス管理
+    // ZXing スキャナーインスタンス
+    let codeReader = null;
     let currentDeviceId = null;
     let videoInputs = [];
     const cameraSelect = document.getElementById('camera-select');
 
-    // 🌟 直前に処理した無効なQRのメモリ保持用
     let lastInvalidId = ""; 
 
     function setMode(mode) {
       currentMode = mode;
-      lastInvalidId = ""; // 👈 モード切替時に無効QRの記憶をクリア
+      lastInvalidId = ""; 
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
       
@@ -509,7 +502,7 @@
       } else if (mode === 'exit') {
         badge.innerText = "現在のモード: 一時退場";
         badge.style.background = "#ffa500";
-      } else if (mode === 'reentry') {
+      } else if (mode === 're_entry') {
         badge.innerText = "現在のモード: 再入場";
         badge.style.background = "#1e90ff";
       }
@@ -544,102 +537,72 @@
       }
     }
 
-    // initCamera を deviceId を受け取るように変更
-    function initCamera(deviceId = null) {
-      // 外カメラ(environment)を最優先しつつ、deviceId があればそれを優先
-      let constraints;
-      if (deviceId) {
-        constraints = { video: { deviceId: { exact: deviceId } } };
-      } else {
-        constraints = { video: { facingMode: { ideal: "environment" } } };
+    // 🌟 ZXingによるカメラ初期化とスキャン設定
+    function initScanner(deviceId = null) {
+      if (codeReader) {
+        codeReader.reset();
       }
 
-      return navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-          localStream = stream;
-          video.srcObject = stream;
-          isScanning = true;
-          currentDeviceId = deviceId || getDeviceIdFromStream(stream);
-          // カメララベル取得のためにデバイスリスト更新
-          populateCameraList();
-          requestAnimationFrame(scanQRCode);
-        })
-        .catch(err => {
-          console.error("Camera Init Error: ", err);
-          // deviceId 指定で失敗した場合は facingMode にフォールバックして再試行
-          if (deviceId) {
-            console.warn("指定したデバイスで起動できませんでした。facingMode にフォールバックします。");
-            return initCamera(null);
-          }
-          alert("カメラの起動に失敗しました。ブラウザのカメラ権限が「許可」になっているか確認してください。");
-          document.getElementById("start-btn").style.display = "inline-block";
-          pauseBtn.style.display = "none";
-        });
+      const hints = new Map();
+      // Aztec, Data Matrix, QRコード に絞り込んで爆速解析
+      const formats = [
+        ZXing.BarcodeFormat.AZTEC,
+        ZXing.BarcodeFormat.DATA_MATRIX,
+        ZXing.BarcodeFormat.QR_CODE
+      ];
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+
+      codeReader = new ZXing.BrowserMultiFormatReader(hints);
+
+      codeReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
+        if (result && !isProcessing && !isPaused) {
+          isProcessing = true;
+          scanFrame.classList.add("detected");
+          processTicket(result.text);
+        }
+      })
+      .then(() => {
+        populateCameraList();
+      })
+      .catch(err => {
+        console.error("Camera Init Error: ", err);
+        alert("カメラの起動に失敗しました。カメラの権限を確認してください。");
+        document.getElementById("start-btn").style.display = "inline-block";
+        pauseBtn.style.display = "none";
+      });
     }
 
     function startCamera() {
       document.getElementById("start-btn").style.display = "none";
       pauseBtn.style.display = "inline-block";
       pauseMessage.style.display = "none";
+      scanFrame.style.display = "block";
       setMode("entry");
       isPaused = false;
-      // 最初は currentDeviceId があればそれを、なければ null（facingMode）で起動
-      initCamera(currentDeviceId).then(() => {
-        // enumerateDevices を一度実行
-        populateCameraList();
-      });
+      isProcessing = false;
+
+      initScanner(currentDeviceId);
     }
 
     function togglePause() {
-      if (!localStream && !isPaused) return;
-
       if (!isPaused) {
         isPaused = true;
-        isScanning = false;
+        isProcessing = true;
         pauseMessage.style.display = "flex";
         scanFrame.style.display = "none";
         pauseBtn.innerHTML = "▶ 再開";
         
-        if (localStream) {
-          localStream.getTracks().forEach(track => track.stop());
-          localStream = null;
+        if (codeReader) {
+          codeReader.reset();
         }
-        video.srcObject = null;
       } else {
         isPaused = false;
+        isProcessing = false;
         pauseMessage.style.display = "none";
         scanFrame.style.display = "block";
         pauseBtn.innerHTML = "⏸ 停止";
-        initCamera(currentDeviceId);
+        initScanner(currentDeviceId);
       }
-    }
-
-    function scanQRCode() {
-      if (!isScanning || isPaused) return;
-
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        let canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        let ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: "dontInvert",
-        });
-
-        if (code && code.data) {
-          isScanning = false;
-          scanFrame.classList.add("detected");
-          
-          setTimeout(() => {
-            processTicket(code.data);
-          }, 50);
-          return;
-        }
-      }
-      requestAnimationFrame(scanQRCode);
     }
 
     function processTicket(qrData) {
@@ -653,7 +616,6 @@
       } else if (decodedData.startsWith("TKT-")) {
         ticketId = decodedData.trim();
       } else {
-        // 🌟【ダブり防止】直前の無効IDや、その生URLと同じだったら即座に通信せず無視
         if (qrData === lastInvalidId || decodedData === lastInvalidId) {
           resetScanImmediately();
           return;
@@ -673,7 +635,6 @@
         return;
       }
 
-      // 🌟【ダブり防止】すでに同じ無効チケットを直前に処理していたら、GASに飛ばさずスルー
       if (ticketId === lastInvalidId || qrData === lastInvalidId) {
         resetScanImmediately();
         return;
@@ -690,15 +651,13 @@
       })
       .then(res => res.text())
       .then(result => {
-        // レスポンスを分割（結果|時間帯）
         const parts = result.split("|");
-        const status = parts[0]; // 👈 ステータス文字列を取り出す
+        const status = parts[0]; 
         const ticketTime = parts[1] || "";
 
-        // 時間帯チェック
         const now = new Date();
         const hour = now.getHours();
-        const isAM = hour < 13; // 13時未満を午前とする
+        const isAM = hour < 13; 
 
         if (status === "OK" || status === "RE_ENTRY_OK") {
           if (ticketTime === "am" && !isAM) {
@@ -729,16 +688,15 @@
           }
         }
 
-        // 🌟 正しく処理が進んだ場合は無効記憶をリセット
         lastInvalidId = "";
 
         if (status === "OK") {
           triggerMagsafe("ok", "✅ 入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#2ed573; font-size:24px;">【成功】初回入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
-        } else if (status === "EXIT_OK") { // 👈 status を判定
+        } else if (status === "EXIT_OK") { 
           triggerMagsafe("exit", "🚪 一時退場しました", "exit");
           resultPlaceholder.innerHTML = `<b style="color:#ffa500; font-size:24px;">【退場】一時退場確認</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
-        } else if (status === "RE_ENTRY_OK") { // 👈 status を判定
+        } else if (status === "RE_ENTRY_OK") { 
           triggerMagsafe("reentry", "🔄 再入場手続き完了", "ok");
           resultPlaceholder.innerHTML = `<b style="color:#1e90ff; font-size:24px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
         } 
@@ -782,12 +740,11 @@
               <div class="error-title">⚠️ すでに滞在中（重複エラー）</div>
               <div class="error-instruction">
                 このチケットはすでに初回入場、または再入場の処理が完了しています。<br>
-                二重に同じQRコードを使用していないか確認してください。
+                二重に同じコードを使用していないか確認してください。
               </div>
             </div>`;
         }
         else {
-          // 台帳に存在しない偽コードの時
           lastInvalidId = ticketId;
           showInvalidTicketError(qrData);
         }
@@ -802,22 +759,20 @@
       });
     }
 
-    // 🌟【超高速ダブり用】画面を一切動かさず、カメラだけを一瞬で再開させる関数
     function resetScanImmediately() {
       scanFrame.classList.remove("detected");
       if (!isPaused) {
-        isScanning = true;
-        requestAnimationFrame(scanQRCode);
+        setTimeout(() => { isProcessing = false; }, 300);
       }
     }
 
     function showInvalidTicketError(qrData) {
-      triggerMagsafe("error", "❌ 無効なQRコード", "invalid", "⚠️ チケットの確認をお願いします");
+      triggerMagsafe("error", "❌ 無効なコード", "invalid", "⚠️ チケットの確認をお願いします");
       resultPlaceholder.innerHTML = `
         <div class="error-container">
           <div class="error-title">⚠️ チケットの確認をお願いします。</div>
           <div class="error-instruction">
-          生徒会が発券したチケットではない可能性があります。<br>
+            生徒会が発券したチケットではない可能性があります。<br>
             [招待生徒名]が問題なく記入されている場合は、生徒会に連絡してください。
           </div>
         </div>`;
@@ -891,22 +846,18 @@
         scanFrame.classList.remove("detected");
         
         if (!isPaused) {
-          isScanning = true;
-          requestAnimationFrame(scanQRCode);
+          isProcessing = false;
         }
       }, displayTime);
     }
 
-    // カメラ関連ユーティリティ ------------------------------------
+    // カメラ選択ユーティリティ
     function populateCameraList() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-        console.warn('enumerateDevices not supported.');
-        return;
-      }
-      navigator.mediaDevices.enumerateDevices()
+      if (!codeReader) return;
+      
+      codeReader.listVideoInputDevices()
         .then(devices => {
-          videoInputs = devices.filter(d => d.kind === 'videoinput');
-          // 既存選択を保持
+          videoInputs = devices;
           const prev = cameraSelect.value;
           cameraSelect.innerHTML = '';
           videoInputs.forEach((d, i) => {
@@ -915,65 +866,26 @@
             opt.text = d.label || `カメラ ${i + 1}`;
             cameraSelect.appendChild(opt);
           });
-          // currentDeviceId があれば選択、なければ以前の選択を復元
           if (currentDeviceId) {
             cameraSelect.value = currentDeviceId;
           } else if (prev) {
             cameraSelect.value = prev;
           }
         })
-        .catch(err => {
-          console.error('populateCameraList error:', err);
-        });
+        .catch(err => console.error('populateCameraList error:', err));
     }
 
-    // ストリームから deviceId を取得（可能なら）
-    function getDeviceIdFromStream(stream) {
-      try {
-        const track = stream.getVideoTracks()[0];
-        if (!track) return null;
-        const settings = track.getSettings ? track.getSettings() : {};
-        return settings.deviceId || null;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    // 切替ボタン処理
     function switchCamera() {
       const deviceId = cameraSelect.value;
       if (!deviceId) {
-        return alert('切替可能なカメラが見つかりません。まず「開始」を押してカメラアクセスを許可してください。');
-      }
-      if (deviceId === currentDeviceId) {
-        // 同じなら再起動（軽い再取得）
-        if (localStream) {
-          localStream.getTracks().forEach(t => t.stop());
-          localStream = null;
-        }
-        initCamera(deviceId);
-        return;
-      }
-      // 現在のストリーム停止
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
+        return alert('カメラが見つかりません。まず「開始」を押してアクセス権限を許可してください。');
       }
       currentDeviceId = deviceId;
-      initCamera(deviceId);
+      initScanner(currentDeviceId);
     }
 
-    // デバイスが増減したら更新
-    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
-      navigator.mediaDevices.addEventListener('devicechange', () => {
-        // デバイス変更があれば一覧更新
-        populateCameraList();
-      });
-    }
-
-    // 初期化：ページ読み込み時に enumerateDevices を試す（ただしラベルは権限前は空の可能性あり）
     window.addEventListener('load', () => {
-      populateCameraList();
+      // ページ読み込み時の準備
     });
   </script>
 </body>
