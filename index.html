@@ -134,6 +134,7 @@ video {
 width: 100%;
 height: 100%;
 object-fit: cover;
+transform: scaleX(-1); /* 🌟 鏡のように左右反転表示（QR/Aztecのデコードには影響しません） */
 }
 
 /* スキャン枠 */
@@ -489,6 +490,23 @@ const cameraSelect = document.getElementById('camera-select');
 
 let lastInvalidId = ""; 
 
+// 🌟 一時的な通信エラーでスタッフを困らせないよう、タイムアウトと自動再試行を付けた fetch
+function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+const controller = new AbortController();
+const timer = setTimeout(() => controller.abort(), timeoutMs);
+return fetch(url, { ...options, signal: controller.signal })
+.finally(() => clearTimeout(timer));
+}
+
+function fetchWithRetry(url, options = {}, retries = 1, timeoutMs = 8000) {
+return fetchWithTimeout(url, options, timeoutMs).catch(err => {
+if (retries > 0) {
+return fetchWithRetry(url, options, retries - 1, timeoutMs);
+}
+throw err;
+});
+}
+
 function setMode(mode) {
 currentMode = mode;
 lastInvalidId = ""; 
@@ -552,17 +570,15 @@ ZXing.BarcodeFormat.QR_CODE
 ];
 hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
 
-      codeReader = new ZXing.BrowserMultiFormatReader(hints);
-      // 🌟 スキャン間隔を短縮（デフォルト500ms→30ms）してQRが枠に入ったら即座に反応するように
-      codeReader = new ZXing.BrowserMultiFormatReader(hints, 30);
+// 🌟 スキャン間隔を短縮（既定500ms→30ms）してQRが枠に入ったら即座に反応するように
+codeReader = new ZXing.BrowserMultiFormatReader(hints, 30);
 
-      codeReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
-      // 🌟 カメラ解像度を明示的に指定し、1フレームあたりのデコード処理を軽量化して高速化
-      const videoConstraints = deviceId
-        ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-        : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } };
+// 🌟 カメラ解像度を明示的に指定し、1フレームあたりのデコード処理を軽量化して高速化
+const videoConstraints = deviceId
+? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } };
 
-      codeReader.decodeFromConstraints({ video: videoConstraints }, 'video', (result, err) => {
+codeReader.decodeFromConstraints({ video: videoConstraints }, 'video', (result, err) => {
 if (result && !isProcessing && !isPaused) {
 isProcessing = true;
 scanFrame.classList.add("detected");
@@ -617,7 +633,12 @@ function processTicket(qrData) {
 if (isPaused) return;
 
 let ticketId = "";
-let decodedData = decodeURIComponent(qrData);
+let decodedData;
+try {
+decodedData = decodeURIComponent(qrData);
+} catch (e) {
+decodedData = qrData; // デコードできない場合は生データのまま扱う
+}
 
 if (decodedData.includes("id=")) {
 ticketId = decodedData.split("id=")[1].split("&")[0].trim();
@@ -650,13 +671,13 @@ return;
 
 triggerMagsafe("loading", "通信中...", "");
 
-fetch(GAS_URL, {
+fetchWithRetry(GAS_URL, {
 method: "POST",
 body: JSON.stringify({
 ticketId: ticketId,
 mode: currentMode
 })
-})
+}, 1, 8000)
 .then(res => res.text())
 .then(result => {
 const parts = result.split("|");
@@ -762,7 +783,10 @@ triggerMagsafe("error", "📡 通信エラー", "error", "電波状況を確認�
 resultPlaceholder.innerHTML = `
          <div class="error-container">
            <div class="error-title">📡 通信エラーが発生しました。</div>
-           <div class="error-instruction">インターネット接続を確認してください。</div>
+           <div class="error-instruction">
+             自動再試行しましたが失敗しました。電波状況を確認し、もう一度同じチケットをスキャンしてください。<br>
+             （二重登録の心配はありません。未処理のままです）
+           </div>
          </div>`;
 });
 }
