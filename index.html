@@ -573,12 +573,7 @@ hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
 // 🌟 スキャン間隔を短縮（既定500ms→30ms）してQRが枠に入ったら即座に反応するように
 codeReader = new ZXing.BrowserMultiFormatReader(hints, 30);
 
-// 🌟 カメラ解像度を明示的に指定し、1フレームあたりのデコード処理を軽量化して高速化
-const videoConstraints = deviceId
-? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } };
-
-codeReader.decodeFromConstraints({ video: videoConstraints }, 'video', (result, err) => {
+codeReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
 if (result && !isProcessing && !isPaused) {
 isProcessing = true;
 scanFrame.classList.add("detected");
