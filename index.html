@@ -569,6 +569,7 @@ ZXing.BarcodeFormat.DATA_MATRIX,
 ZXing.BarcodeFormat.QR_CODE
 ];
 hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+hints.set(ZXing.DecodeHintType.TRY_HARDER, true); // 🌟 速度より精度を優先し、読み取りにくいコードへの耐性を上げる
 
 // 🌟 スキャン間隔を短縮（既定500ms→30ms）してQRが枠に入ったら即座に反応するように
 codeReader = new ZXing.BrowserMultiFormatReader(hints, 30);
@@ -578,6 +579,9 @@ if (result && !isProcessing && !isPaused) {
 isProcessing = true;
 scanFrame.classList.add("detected");
 processTicket(result.text);
+} else if (err && err.name !== "NotFoundException") {
+// 🌟 「見つからない」以外の本当のエラーだけを可視化（デバッグ用）
+console.warn("[本当のスキャンエラー]", err.name, err.message);
 }
 })
 .then(() => {
